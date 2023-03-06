@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"testing"
+
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
-	"net"
-	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -75,8 +76,9 @@ func TestDNSReconciler(t *testing.T) {
 			ing.Spec.Rules = append(ing.Spec.Rules, rule)
 			if i == 0 {
 				// add to annotation
-				status, _ := json.Marshal(ingressStatus)
-				ing.Annotations[workload.InternalClusterStatusAnnotationPrefix+"/somecluster"] = string(status)
+				ingress := networkingv1.Ingress{Status: ingressStatus}
+				ingressJson, _ := json.Marshal(ingress)
+				ing.Annotations[workload.InternalSyncerViewAnnotationPrefix+"somecluster"] = string(ingressJson)
 			} else {
 				ing.Status = ingressStatus
 			}

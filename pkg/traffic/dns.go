@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"github.com/kcp-dev/logicalcluster/v2"
+	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/lixiangzhong/dnsutil"
-
 	"k8s.io/apimachinery/pkg/api/equality"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -320,6 +320,6 @@ func AddHostAnnotations(record metav1.Object, host string) string {
 }
 
 func objectKey(obj runtime.Object) cache.ExplicitKey {
-	key, _ := cache.MetaNamespaceKeyFunc(obj)
+	key, _ := kcpcache.MetaClusterNamespaceKeyFunc(obj)
 	return cache.ExplicitKey(key)
 }

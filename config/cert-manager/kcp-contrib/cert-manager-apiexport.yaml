@@ -1,10 +1,10 @@
 ---
-apiVersion: apis.kcp.dev/v1alpha1
+apiVersion: apis.kcp.io/v1alpha1
 kind: APIExport
 metadata:
   name: cert-manager-stable
 spec:
-    latestResourceSchemas:
+  latestResourceSchemas:
     - latest.certificaterequests.cert-manager.io
     - latest.certificates.cert-manager.io
     - latest.challenges.acme.cert-manager.io

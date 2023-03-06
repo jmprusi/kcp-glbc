@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"strings"
 
+	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
+	workload "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/cache"
 
-	workload "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
-
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kuadrant/kcp-glbc/pkg/_internal/log"
 	"github.com/kuadrant/kcp-glbc/pkg/_internal/metadata"
 	v1 "github.com/kuadrant/kcp-glbc/pkg/apis/kuadrant/v1"
@@ -254,20 +253,20 @@ func (a *Route) GetNamespaceName() types.NamespacedName {
 func (a *Route) getStatuses() (map[logicalcluster.Name]routev1.RouteStatus, error) {
 	statuses := map[logicalcluster.Name]routev1.RouteStatus{}
 	for k, v := range a.Annotations {
-		status := routev1.RouteStatus{}
-		if !strings.Contains(k, workload.InternalClusterStatusAnnotationPrefix) {
+		if !strings.Contains(k, workload.InternalSyncerViewAnnotationPrefix) {
 			continue
 		}
 		annotationParts := strings.Split(k, "/")
 		if len(annotationParts) < 2 {
-			return nil, fmt.Errorf("advanced scheduling annotation malformed %s value %s", workload.InternalClusterStatusAnnotationPrefix, a.Annotations[k])
+			return nil, fmt.Errorf("advanced scheduling annotation malformed %s value %s", workload.InternalSyncerViewAnnotationPrefix, a.Annotations[k])
 		}
 		clusterName := annotationParts[1]
-		err := json.Unmarshal([]byte(v), &status)
+		route := routev1.Route{}
+		err := json.Unmarshal([]byte(v), &route)
 		if err != nil {
 			return statuses, err
 		}
-		statuses[logicalcluster.New(clusterName)] = status
+		statuses[logicalcluster.Name(clusterName)] = route.Status
 	}
 
 	cluster := logicalcluster.From(a)
@@ -276,6 +275,6 @@ func (a *Route) getStatuses() (map[logicalcluster.Name]routev1.RouteStatus, erro
 }
 
 func (a *Route) GetCacheKey() string {
-	key, _ := cache.MetaNamespaceKeyFunc(a)
+	key, _ := kcpcache.MetaClusterNamespaceKeyFunc(a)
 	return key
 }

@@ -161,7 +161,7 @@ func TestApplyTransformsIngress(t *testing.T) {
 					{Hosts: []string{"guid.example.com"}, SecretName: "glbc"},
 				})
 				ing.Labels = map[string]string{
-					"state.workload.kcp.dev/c1": "Sync",
+					"state.workload.kcp.io/c1": "Sync",
 				}
 				return ing
 			},
@@ -180,7 +180,7 @@ func TestApplyTransformsIngress(t *testing.T) {
 					{Hosts: []string{"test.com", "api.test.com"}, SecretName: "test"},
 				})
 				ing.Labels = map[string]string{
-					"state.workload.kcp.dev/c1": "Sync",
+					"state.workload.kcp.io/c1": "Sync",
 				}
 				return ing
 			},
@@ -198,7 +198,7 @@ func TestApplyTransformsIngress(t *testing.T) {
 					{Hosts: []string{"guid.example.com"}, SecretName: "glbc"},
 				})
 				ing.Labels = map[string]string{
-					"state.workload.kcp.dev/c1": "Sync",
+					"state.workload.kcp.io/c1": "Sync",
 				}
 				return ing
 			},
@@ -279,8 +279,9 @@ func TestGetDNSTargetsIngress(t *testing.T) {
 					},
 				}
 				ing.Annotations = map[string]string{}
-				jsonStatus, _ := json.Marshal(c1)
-				ing.Annotations[workload.InternalClusterStatusAnnotationPrefix+fmt.Sprintf(clusterFmt, 0)] = string(jsonStatus)
+				ingressC1 := networkingv1.Ingress{Status: c1}
+				ingressC1Json, _ := json.Marshal(ingressC1)
+				ing.Annotations[workload.InternalSyncerViewAnnotationPrefix+fmt.Sprintf(clusterFmt, 0)] = string(ingressC1Json)
 				return ing
 			},
 			Validate: func(targets []dns.Target) error {
@@ -327,10 +328,12 @@ func TestGetDNSTargetsIngress(t *testing.T) {
 					},
 				}
 				ing.Annotations = map[string]string{}
-				jsonStatus, _ := json.Marshal(c1)
-				ing.Annotations[workload.InternalClusterStatusAnnotationPrefix+fmt.Sprintf(clusterFmt, 0)] = string(jsonStatus)
-				jsonStatus, _ = json.Marshal(c2)
-				ing.Annotations[workload.InternalClusterStatusAnnotationPrefix+fmt.Sprintf(clusterFmt, 1)] = string(jsonStatus)
+				ingressC1 := networkingv1.Ingress{Status: c1}
+				ingressC1Json, _ := json.Marshal(ingressC1)
+				ing.Annotations[workload.InternalSyncerViewAnnotationPrefix+fmt.Sprintf(clusterFmt, 0)] = string(ingressC1Json)
+				ingressC2 := networkingv1.Ingress{Status: c2}
+				ingressC2Json, _ := json.Marshal(ingressC2)
+				ing.Annotations[workload.InternalSyncerViewAnnotationPrefix+fmt.Sprintf(clusterFmt, 1)] = string(ingressC2Json)
 				return ing
 			},
 			Validate: func(targets []dns.Target) error {
@@ -379,10 +382,12 @@ func TestGetDNSTargetsIngress(t *testing.T) {
 					},
 				}
 				ing.Annotations = map[string]string{}
-				jsonStatus, _ := json.Marshal(c1)
-				ing.Annotations[workload.InternalClusterStatusAnnotationPrefix+fmt.Sprintf(clusterFmt, 0)] = string(jsonStatus)
-				jsonStatus, _ = json.Marshal(c2)
-				ing.Annotations[workload.InternalClusterStatusAnnotationPrefix+fmt.Sprintf(clusterFmt, 1)] = string(jsonStatus)
+				ingressC1 := networkingv1.Ingress{Status: c1}
+				ingressC1Json, _ := json.Marshal(ingressC1)
+				ing.Annotations[workload.InternalSyncerViewAnnotationPrefix+fmt.Sprintf(clusterFmt, 0)] = string(ingressC1Json)
+				ingressC2 := networkingv1.Ingress{Status: c2}
+				ingressC2Json, _ := json.Marshal(ingressC2)
+				ing.Annotations[workload.InternalSyncerViewAnnotationPrefix+fmt.Sprintf(clusterFmt, 1)] = string(ingressC2Json)
 				return ing
 			},
 			Validate: func(targets []dns.Target) error {

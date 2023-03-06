@@ -15,35 +15,35 @@ limitations under the License.
 package support
 
 import (
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
+	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	kcp "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
+	kcpclientset "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/cluster"
 
 	certmanclient "github.com/jetstack/cert-manager/pkg/client/clientset/versioned"
 
-	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned"
+	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned/cluster"
 )
 
 type Client interface {
 	Core() kubernetes.ClusterInterface
-	Kcp() kcp.ClusterInterface
+	Kcp() kcpclientset.ClusterInterface
 	Kuadrant() kuadrantv1.ClusterInterface
 	Certs() certmanclient.Interface
-	Dynamic() dynamic.ClusterInterface
+	Dynamic() kcpdynamic.ClusterInterface
 	GetConfig() *rest.Config
 }
 
 type client struct {
 	core     kubernetes.ClusterInterface
-	kcp      kcp.ClusterInterface
+	kcp      kcpclientset.ClusterInterface
 	kuadrant kuadrantv1.ClusterInterface
 	certs    certmanclient.Interface
 	config   *rest.Config
-	dynamic  dynamic.ClusterInterface
+	dynamic  kcpdynamic.ClusterInterface
 }
 
 func (c *client) Certs() certmanclient.Interface {
@@ -54,7 +54,7 @@ func (c *client) Core() kubernetes.ClusterInterface {
 	return c.core
 }
 
-func (c *client) Kcp() kcp.ClusterInterface {
+func (c *client) Kcp() kcpclientset.ClusterInterface {
 	return c.kcp
 }
 
@@ -62,7 +62,7 @@ func (c *client) Kuadrant() kuadrantv1.ClusterInterface {
 	return c.kuadrant
 }
 
-func (c *client) Dynamic() dynamic.ClusterInterface {
+func (c *client) Dynamic() kcpdynamic.ClusterInterface {
 	return c.dynamic
 }
 
@@ -74,23 +74,23 @@ func newTestClient() (Client, error) {
 	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(),
 		&clientcmd.ConfigOverrides{
-			CurrentContext: "system:admin",
+			CurrentContext: "base",
 		}).ClientConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	kubeClient, err := kubernetes.NewClusterForConfig(cfg)
+	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	kcpClient, err := kcp.NewClusterForConfig(cfg)
+	kcpClient, err := kcpclientset.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	kuandrantClient, err := kuadrantv1.NewClusterForConfig(cfg)
+	kuandrantClient, err := kuadrantv1.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func newTestClient() (Client, error) {
 		return nil, err
 	}
 
-	dynamicClient, err := dynamic.NewClusterForConfig(cfg)
+	dynamicClient, err := kcpdynamic.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
 	}

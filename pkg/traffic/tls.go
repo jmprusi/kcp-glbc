@@ -18,10 +18,10 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	"github.com/kuadrant/kcp-glbc/pkg/tls"
 )
@@ -153,7 +153,7 @@ func (r *CertificateReconciler) Reconcile(ctx context.Context, accessor Interfac
 	labels := map[string]string{
 		basereconciler.LABEL_HCG_MANAGED: "true",
 	}
-	key, err := cache.MetaNamespaceKeyFunc(accessor)
+	key, err := kcpcache.MetaClusterNamespaceKeyFunc(accessor)
 	if err != nil {
 		return ReconcileStatusStop, err
 	}

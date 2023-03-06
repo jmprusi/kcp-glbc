@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/tools/cache"
-
+	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	"github.com/kuadrant/kcp-glbc/pkg/migration/workload"
 	"github.com/kuadrant/kcp-glbc/pkg/traffic"
+	"k8s.io/client-go/tools/cache"
 
 	utilserrors "k8s.io/apimachinery/pkg/util/errors"
 
@@ -90,6 +90,6 @@ func (c *Controller) reconcile(ctx context.Context, route *traffic.Route) error 
 }
 
 func routeKey(route *traffic.Route) interface{} {
-	key, _ := cache.MetaNamespaceKeyFunc(route)
+	key, _ := kcpcache.MetaClusterNamespaceKeyFunc(route)
 	return cache.ExplicitKey(key)
 }

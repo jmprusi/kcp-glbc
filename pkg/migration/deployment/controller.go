@@ -3,18 +3,18 @@ package deployment
 import (
 	"context"
 
+	kcpinformers "github.com/kcp-dev/client-go/informers"
+	"github.com/kcp-dev/client-go/kubernetes"
+	kcpappsv1listers "github.com/kcp-dev/client-go/listers/apps/v1"
+	kcpcorev1listers "github.com/kcp-dev/client-go/listers/core/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	appsv1listers "k8s.io/client-go/listers/apps/v1"
-	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/go-logr/logr"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kuadrant/kcp-glbc/pkg/migration/workload"
 	"github.com/kuadrant/kcp-glbc/pkg/reconciler"
 )
@@ -49,16 +49,16 @@ func NewController(config *ControllerConfig) (*Controller, error) {
 type ControllerConfig struct {
 	*reconciler.ControllerConfig
 	DeploymentClient      kubernetes.ClusterInterface
-	SharedInformerFactory informers.SharedInformerFactory
+	SharedInformerFactory kcpinformers.SharedInformerFactory
 }
 
 type Controller struct {
 	*reconciler.Controller
-	sharedInformerFactory informers.SharedInformerFactory
+	sharedInformerFactory kcpinformers.SharedInformerFactory
 	coreClient            kubernetes.ClusterInterface
 	indexer               cache.Indexer
-	deploymentLister      appsv1listers.DeploymentLister
-	serviceLister         corev1listers.ServiceLister
+	deploymentLister      kcpappsv1listers.DeploymentClusterLister
+	serviceLister         kcpcorev1listers.ServiceClusterLister
 	migrationHandler      func(obj metav1.Object, queue workqueue.RateLimitingInterface, logger logr.Logger)
 }
 
@@ -82,7 +82,7 @@ func (c *Controller) process(ctx context.Context, key string) error {
 
 	// If the object being reconciled changed as a result, update it.
 	if !equality.Semantic.DeepEqual(target, current) {
-		_, err := c.coreClient.Cluster(logicalcluster.From(target)).AppsV1().Deployments(target.Namespace).Update(ctx, target, metav1.UpdateOptions{})
+		_, err := c.coreClient.Cluster(logicalcluster.From(target).Path()).AppsV1().Deployments(target.Namespace).Update(ctx, target, metav1.UpdateOptions{})
 		return err
 	}
 

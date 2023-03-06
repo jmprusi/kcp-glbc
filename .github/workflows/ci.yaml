@@ -4,24 +4,23 @@ on:
   push:
     branches:
       - main
-      - 'release-*'
+      - "release-*"
     paths-ignore:
-      - '**.adoc'
-      - '**.md'
-      - 'samples/**'
-      - 'LICENSE'
+      - "**.adoc"
+      - "**.md"
+      - "samples/**"
+      - "LICENSE"
   pull_request:
     branches:
       - main
-      - 'release-*'
+      - "release-*"
     paths-ignore:
-      - '**.adoc'
-      - '**.md'
-      - 'samples/**'
-      - 'LICENSE'
+      - "**.adoc"
+      - "**.md"
+      - "samples/**"
+      - "LICENSE"
 
 jobs:
-
   lint:
     name: lint
     runs-on: ubuntu-20.04
@@ -29,7 +28,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: v1.18
+          go-version: v1.19
       - uses: golangci/golangci-lint-action@v2
         with:
           version: v1.49.0
@@ -41,13 +40,13 @@ jobs:
     name: codegen
     strategy:
       matrix:
-        platform: [ ubuntu-20.04, macos-11 ]
+        platform: [ubuntu-20.04, macos-11]
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: v1.18
+          go-version: v1.19
       - name: Check generate
         run: make verify-generate
       - name: Check monitoring resources generate
@@ -60,7 +59,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: v1.18
+          go-version: v1.19
       - run: make build
       - run: PATH="${PATH}:$(pwd)/bin/" make test
       - run: make prometheus-rules-unit-test

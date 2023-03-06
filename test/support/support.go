@@ -19,12 +19,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/kcp-dev/logicalcluster/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 
-	"github.com/kcp-dev/logicalcluster/v2"
-
-	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	"github.com/kuadrant/kcp-glbc/pkg/_internal/env"
 )
 
@@ -44,7 +42,7 @@ const (
 )
 
 var (
-	TestOrganization = getEnvLogicalClusterName(testWorkspaceName, tenancyv1alpha1.RootCluster.Join("kuadrant"))
+	TestOrganization = getEnvLogicalClusterName(testWorkspaceName, logicalcluster.Name(logicalcluster.Name("root").Path().Join("kuadrant").String()))
 	GLBCWorkspace    = getEnvLogicalClusterName(glbcWorkspaceName, TestOrganization)
 	GLBCExportName   = env.GetEnvString(glbcExportName, "glbc-root-kuadrant")
 
@@ -56,7 +54,7 @@ func getEnvLogicalClusterName(key string, fallback logicalcluster.Name) logicalc
 	if !found {
 		return fallback
 	}
-	return logicalcluster.New(value)
+	return logicalcluster.Name(value)
 }
 
 // GenerateName Borrowed from https://github.com/kubernetes/apiserver/blob/v0.25.2/pkg/storage/names/generate.go

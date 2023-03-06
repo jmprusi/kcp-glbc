@@ -9,7 +9,7 @@ The following describes how to deploy and test the GLBC running on a kind cluste
 Run the `local-setup` script to create the test kind clusters, configure KCP workspaces and start a local KCP process.
 
 ```shell
-$ make local-setup
+make local-setup
 ```
 
 ### Terminal 2
@@ -50,13 +50,13 @@ glbc-root-kuadrant         12m
 kubernetes            15m
 $ kubectl get apibindings
 NAME                  AGE
-apiresource.kcp.dev   16m
+apiresource.kcp.io   16m
 cert-manager          15m
 glbc                  13m
 kubernetes            15m
-scheduling.kcp.dev    16m
-tenancy.kcp.dev       16m
-workload.kcp.dev      16m
+scheduling.kcp.io    16m
+tenancy.kcp.io       16m
+workload.kcp.io      16m
 $ kubectl get deployments -A
 NAMESPACE      NAME           READY   UP-TO-DATE   AVAILABLE   AGE
 cert-manager   cert-manager   0/1     0            0           13m
@@ -75,16 +75,17 @@ services.v1.core
 #### Deploy GLBC
 
 ```shell
-$ ./bin/kubectl-kcp ws root:kuadrant
+./bin/kubectl-kcp ws root:kuadrant
 ````
 
 Deploy the GLBC into the `kcp-glbc` workspace.
 
 ```shell
-$ KUBECONFIG=.kcp/admin.kubeconfig ./utils/deploy.sh
+KUBECONFIG=.kcp/admin.kubeconfig ./utils/deploy.sh
 ```
 
 Check the deployment:
+
 ```shell
 $ kubectl get deployments -A
 NAMESPACE      NAME                          READY   UP-TO-DATE   AVAILABLE   AGE
@@ -92,7 +93,7 @@ cert-manager   cert-manager                  0/1     0            0           17
 kcp-glbc       kcp-glbc-controller-manager   0/1     0            0           76s
 ```
 
-It's not currently possible to check the logs via KCP, but you can view them by accessing the deployment on the kind cluster directly: 
+It's not currently possible to check the logs via KCP, but you can view them by accessing the deployment on the kind cluster directly:
 
 ```shell
 $ namespace=$(kubectl --context kind-kcp-cluster-1 get deployments --all-namespaces | grep -e kcp-glbc-controller-manager | awk '{print $1 }')
@@ -100,6 +101,7 @@ $ kubectl --kubeconfig ~/.kube/config --context kind-kcp-cluster-1 logs -f deplo
 2022-06-20T09:59:47.622Z INFO runtime/proc.go:255 Creating TLS certificate provider {"issuer": "glbc-ca"}
 ....
 ```
+
 N.B. Make sure you run this command using the correct kubeconfig and context i.e. Not the KCP one.
 
 ### Terminal 3
@@ -107,10 +109,11 @@ N.B. Make sure you run this command using the correct kubeconfig and context i.e
 Test the deployment using the sample service.
 
 ```shell
-$ export KUBECONFIG=.kcp/admin.kubeconfig
+export KUBECONFIG=.kcp/admin.kubeconfig
 ````
 
 Move into your home workspace
+
 ```shell
 $ ./bin/kubectl-kcp ws
 Current workspace is "root:users:zu:yc:kcp-admin".
@@ -118,11 +121,12 @@ Note: 'kubectl ws' now matches 'cd' semantics: go to home workspace. 'kubectl ws
 ```
 
 Create kubernetes and glbc APIBindings
+
 ```shell
 $ kubectl apply -f config/apiexports/kubernetes/kubernetes-apibinding.yaml
-apibinding.apis.kcp.dev/kubernetes created
+apibinding.apis.kcp.io/kubernetes created
 $ kubectl apply -f config/deploy/local/kcp-glbc/apiexports/glbc/glbc-apibinding.yaml
-apibinding.apis.kcp.dev/glbc created
+apibinding.apis.kcp.io/glbc created
 ```
 
 Deploy the echo service
@@ -135,6 +139,7 @@ ingress.networking.k8s.io/ingress-nondomain created
 ```
 
 Check the deployment:
+
 ```shell
 $ kubectl get deployments -A
 NAMESPACE   NAME              READY   UP-TO-DATE   AVAILABLE   AGE
@@ -146,8 +151,8 @@ Check what cluster was selected for the deployment:
 ```shell
 $ kubectl get deployment echo -n default -o json | jq .metadata.labels
 {
-  "claimed.internal.apis.kcp.dev/23927525fc377edc1b0d643c368ef3e53": "23927525fc377edc1b0d643c368ef3e53f085ab6362ce2e608fc0552",
-  "state.workload.kcp.dev/aSmDOEWMWf6IEqrPjoUAOgn0XNeFUa05deJjLB": "Sync"
+  "claimed.internal.apis.kcp.io/23927525fc377edc1b0d643c368ef3e53": "23927525fc377edc1b0d643c368ef3e53f085ab6362ce2e608fc0552",
+  "state.workload.kcp.io/aSmDOEWMWf6IEqrPjoUAOgn0XNeFUa05deJjLB": "Sync"
 }
 $ ./bin/kubectl-kcp ws root:kuadrant
 Current workspace is "root:kuadrant" (type "root:universal").
@@ -157,7 +162,7 @@ kcp-cluster-1   kcp-cluster-1   True                           aSmDOEWMWf6IEqrPj
 kcp-cluster-2   kcp-cluster-2   True                           9o7VjBmvhoDPLl1txc7N6EaXcWyU5oxorBOXdp   34m
 ```
 
-Use the "state.workload.kcp.dev/${SYNCTARGET KEY}" label to figure out what synctarget is being used. kcp-cluster-1 in this case.
+Use the "state.workload.kcp.io/${SYNCTARGET KEY}" label to figure out what synctarget is being used. kcp-cluster-1 in this case.
 
 Check the logs:
 
@@ -170,4 +175,5 @@ kcp-yj9ujet4lw2h                    echo-deployment                     1/1     
 $ kubectl --kubeconfig ~/.kube/config --context kind-kcp-cluster-1 logs -f deployments/echo-deployment -n kcp-yj9ujet4lw2h
 Echo server listening on port 8080.
 ```
+
 N.B. Make sure you run this command using the correct kubeconfig i.e., Not the KCP one, and set the context to the selected cluster.

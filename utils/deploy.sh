@@ -27,7 +27,7 @@ GLBC_WORKSPACE=root:kuadrant
 #Syn Targets
 : ${GLBC_SYNC_TARGET_NAME:=kcp-cluster-1}
 
-: ${KCP_VERSION:="release-0.9"}
+: ${KCP_VERSION:="v0.11.0"}
 KCP_SYNCER_IMAGE="ghcr.io/kcp-dev/kcp/syncer:${KCP_VERSION}"
 
 # GLBC Deployment
@@ -99,13 +99,12 @@ create_ns() {
 create_sync_target() {
   kubectl get synctargets ${GLBC_SYNC_TARGET_NAME} || {
     echo "Creating workload cluster '${1}'"
-    ${KUBECTL_KCP_BIN} workload sync ${1} --kcp-namespace kcp-syncer --syncer-image=${KCP_SYNCER_IMAGE} --resources=ingresses.networking.k8s.io,services --output-file ${SYNC_TARGETS_DIR}/${1}-syncer.yaml
+    ${KUBECTL_KCP_BIN} workload sync ${1} --kcp-namespace kcp-syncer --syncer-image=${KCP_SYNCER_IMAGE} --resources=ingresses.networking.k8s.io,services,pods,deployments.apps --output-file ${SYNC_TARGETS_DIR}/${1}-syncer.yaml --apiexports ""
     echo "Apply the following syncer config to the intended physical cluster."
     echo ""
     echo "   kubectl apply -f ${SYNC_TARGETS_DIR}/${1}-syncer.yaml"
     echo ""
   }
-  kubectl annotate --overwrite synctarget ${1} featuregates.experimental.workload.kcp.dev/advancedscheduling='true'
   kubectl label --overwrite synctarget ${1} kuadrant.dev/synctarget=${1}
   kubectl wait --timeout=60s --for=condition=VirtualWorkspaceURLsReady=true apiexport kubernetes
 
@@ -121,6 +120,7 @@ deploy_cert_manager() {
   create_ns "cert-manager"
   ${KUSTOMIZE_BIN} build ${CERT_MANAGER_KUSTOMIZATION_DIR} --enable-helm --helm-command ${HELM_BIN} | kubectl apply -f -
   echo "Waiting for Cert Manager deployments to be ready..."
+  kubectl label namespace cert-manager "kuadrant.dev/location=cert-manager"
   #When advancedscheduling is enabled the status check on deployments never works
   #kubectl -n cert-manager wait --timeout=300s --for=condition=Available deployments --all
 }
@@ -231,6 +231,10 @@ fi
 
 ## Apply GLBC APIExport
 APIEXPORT_DIR=${KCP_GLBC_KUSTOMIZATION_DIR}/apiexports
+
+## Admission controllers will deny the creation of an apibinding if there isn't an apiexport
+## kustomize will generate the apibinding first, so we need to apply it twice... ugly.
+${KUSTOMIZE_BIN} build ${APIEXPORT_DIR} | kubectl apply -f - || true
 ${KUSTOMIZE_BIN} build ${APIEXPORT_DIR} | kubectl apply -f -
 kubectl wait --timeout=120s --for=condition=Ready=true apibinding "glbc"
 kubectl wait --timeout=60s --for=condition=VirtualWorkspaceURLsReady=true apiexport ${GLBC_EXPORT_NAME}

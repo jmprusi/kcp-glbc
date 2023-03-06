@@ -6,7 +6,6 @@ import (
 	"context"
 	"time"
 
-	v2 "github.com/kcp-dev/logicalcluster/v2"
 	v1 "github.com/kuadrant/kcp-glbc/pkg/apis/kuadrant/v1"
 	scheme "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,17 +36,15 @@ type DNSRecordInterface interface {
 
 // dNSRecords implements DNSRecordInterface
 type dNSRecords struct {
-	client  rest.Interface
-	cluster v2.Name
-	ns      string
+	client rest.Interface
+	ns     string
 }
 
 // newDNSRecords returns a DNSRecords
 func newDNSRecords(c *KuadrantV1Client, namespace string) *dNSRecords {
 	return &dNSRecords{
-		client:  c.RESTClient(),
-		cluster: c.cluster,
-		ns:      namespace,
+		client: c.RESTClient(),
+		ns:     namespace,
 	}
 }
 
@@ -55,7 +52,6 @@ func newDNSRecords(c *KuadrantV1Client, namespace string) *dNSRecords {
 func (c *dNSRecords) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.DNSRecord, err error) {
 	result = &v1.DNSRecord{}
 	err = c.client.Get().
-		Cluster(c.cluster).
 		Namespace(c.ns).
 		Resource("dnsrecords").
 		Name(name).
@@ -73,7 +69,6 @@ func (c *dNSRecords) List(ctx context.Context, opts metav1.ListOptions) (result 
 	}
 	result = &v1.DNSRecordList{}
 	err = c.client.Get().
-		Cluster(c.cluster).
 		Namespace(c.ns).
 		Resource("dnsrecords").
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -91,7 +86,6 @@ func (c *dNSRecords) Watch(ctx context.Context, opts metav1.ListOptions) (watch.
 	}
 	opts.Watch = true
 	return c.client.Get().
-		Cluster(c.cluster).
 		Namespace(c.ns).
 		Resource("dnsrecords").
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -103,7 +97,6 @@ func (c *dNSRecords) Watch(ctx context.Context, opts metav1.ListOptions) (watch.
 func (c *dNSRecords) Create(ctx context.Context, dNSRecord *v1.DNSRecord, opts metav1.CreateOptions) (result *v1.DNSRecord, err error) {
 	result = &v1.DNSRecord{}
 	err = c.client.Post().
-		Cluster(c.cluster).
 		Namespace(c.ns).
 		Resource("dnsrecords").
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -117,7 +110,6 @@ func (c *dNSRecords) Create(ctx context.Context, dNSRecord *v1.DNSRecord, opts m
 func (c *dNSRecords) Update(ctx context.Context, dNSRecord *v1.DNSRecord, opts metav1.UpdateOptions) (result *v1.DNSRecord, err error) {
 	result = &v1.DNSRecord{}
 	err = c.client.Put().
-		Cluster(c.cluster).
 		Namespace(c.ns).
 		Resource("dnsrecords").
 		Name(dNSRecord.Name).
@@ -133,7 +125,6 @@ func (c *dNSRecords) Update(ctx context.Context, dNSRecord *v1.DNSRecord, opts m
 func (c *dNSRecords) UpdateStatus(ctx context.Context, dNSRecord *v1.DNSRecord, opts metav1.UpdateOptions) (result *v1.DNSRecord, err error) {
 	result = &v1.DNSRecord{}
 	err = c.client.Put().
-		Cluster(c.cluster).
 		Namespace(c.ns).
 		Resource("dnsrecords").
 		Name(dNSRecord.Name).
@@ -148,7 +139,6 @@ func (c *dNSRecords) UpdateStatus(ctx context.Context, dNSRecord *v1.DNSRecord, 
 // Delete takes name of the dNSRecord and deletes it. Returns an error if one occurs.
 func (c *dNSRecords) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
-		Cluster(c.cluster).
 		Namespace(c.ns).
 		Resource("dnsrecords").
 		Name(name).
@@ -164,7 +154,6 @@ func (c *dNSRecords) DeleteCollection(ctx context.Context, opts metav1.DeleteOpt
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
-		Cluster(c.cluster).
 		Namespace(c.ns).
 		Resource("dnsrecords").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
@@ -178,7 +167,6 @@ func (c *dNSRecords) DeleteCollection(ctx context.Context, opts metav1.DeleteOpt
 func (c *dNSRecords) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.DNSRecord, err error) {
 	result = &v1.DNSRecord{}
 	err = c.client.Patch(pt).
-		Cluster(c.cluster).
 		Namespace(c.ns).
 		Resource("dnsrecords").
 		Name(name).

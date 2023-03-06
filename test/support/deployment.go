@@ -21,7 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 func GetDeployments(t Test, namespace *corev1.Namespace, labelSelector string) []appsv1.Deployment {
@@ -31,7 +31,7 @@ func GetDeployments(t Test, namespace *corev1.Namespace, labelSelector string) [
 
 func Deployments(t Test, namespace *corev1.Namespace, labelSelector string) func(g gomega.Gomega) []appsv1.Deployment {
 	return func(g gomega.Gomega) []appsv1.Deployment {
-		deployments, err := t.Client().Core().Cluster(logicalcluster.From(namespace)).AppsV1().Deployments(namespace.Name).List(t.Ctx(), metav1.ListOptions{LabelSelector: labelSelector})
+		deployments, err := t.Client().Core().Cluster(logicalcluster.From(namespace).Path()).AppsV1().Deployments(namespace.Name).List(t.Ctx(), metav1.ListOptions{LabelSelector: labelSelector})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return deployments.Items
 	}

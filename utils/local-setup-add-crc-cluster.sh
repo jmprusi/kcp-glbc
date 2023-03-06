@@ -58,7 +58,7 @@ fi
 
 KUBECTL_KCP_BIN="./bin/kubectl-kcp"
 
-: ${KCP_VERSION:="release-0.9"}
+: ${KCP_VERSION:="v0.11.0"}
 KCP_SYNCER_IMAGE="ghcr.io/kcp-dev/kcp/syncer:${KCP_VERSION}"
 
 #Check that KUBECONFIG is not set to .kcp/admin.kubeconfig
@@ -79,7 +79,6 @@ kubectl --context crc-admin get ns | grep kcp | awk '{print $1}' | xargs -r kube
 echo "Registering crc cluster into KCP"
 KUBECONFIG=${KUBECONFIG_KCP_ADMIN} ./bin/kubectl-kcp ws root:kuadrant
 KUBECONFIG=${KUBECONFIG_KCP_ADMIN} ${KUBECTL_KCP_BIN} workload sync ${CRC_CLUSTER_NAME} --syncer-image=${KCP_SYNCER_IMAGE} --resources=ingresses.networking.k8s.io,services,routes.route.openshift.io --output-file ${SYNC_TARGETS_DIR}/${CRC_CLUSTER_NAME}-syncer.yaml
-KUBECONFIG=${KUBECONFIG_KCP_ADMIN} kubectl annotate --overwrite synctarget ${CRC_CLUSTER_NAME} featuregates.experimental.workload.kcp.dev/advancedscheduling='true'
 
 ${SED} -i '/^  - routes$/a \ \ - routes/custom-host' ${SYNC_TARGETS_DIR}/${CRC_CLUSTER_NAME}-syncer.yaml
 kubectl --context crc-admin apply -f ${SYNC_TARGETS_DIR}/${CRC_CLUSTER_NAME}-syncer.yaml

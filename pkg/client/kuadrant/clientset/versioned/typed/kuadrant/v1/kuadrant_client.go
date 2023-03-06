@@ -5,7 +5,6 @@ package v1
 import (
 	"net/http"
 
-	v2 "github.com/kcp-dev/logicalcluster/v2"
 	v1 "github.com/kuadrant/kcp-glbc/pkg/apis/kuadrant/v1"
 	"github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
@@ -20,7 +19,6 @@ type KuadrantV1Interface interface {
 // KuadrantV1Client is used to interact with features provided by the kuadrant.dev group.
 type KuadrantV1Client struct {
 	restClient rest.Interface
-	cluster    v2.Name
 }
 
 func (c *KuadrantV1Client) DNSRecords(namespace string) DNSRecordInterface {
@@ -57,7 +55,7 @@ func NewForConfigAndClient(c *rest.Config, h *http.Client) (*KuadrantV1Client, e
 	if err != nil {
 		return nil, err
 	}
-	return &KuadrantV1Client{restClient: client}, nil
+	return &KuadrantV1Client{client}, nil
 }
 
 // NewForConfigOrDie creates a new KuadrantV1Client for the given config and
@@ -72,12 +70,7 @@ func NewForConfigOrDie(c *rest.Config) *KuadrantV1Client {
 
 // New creates a new KuadrantV1Client for the given RESTClient.
 func New(c rest.Interface) *KuadrantV1Client {
-	return &KuadrantV1Client{restClient: c}
-}
-
-// NewWithCluster creates a new KuadrantV1Client for the given RESTClient and cluster.
-func NewWithCluster(c rest.Interface, cluster v2.Name) *KuadrantV1Client {
-	return &KuadrantV1Client{restClient: c, cluster: cluster}
+	return &KuadrantV1Client{c}
 }
 
 func setConfigDefaults(config *rest.Config) error {

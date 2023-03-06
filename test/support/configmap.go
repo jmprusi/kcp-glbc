@@ -15,7 +15,7 @@ limitations under the License.
 package support
 
 import (
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +23,7 @@ import (
 
 func ConfigMap(t Test, namespace *corev1.Namespace, name string) func(g gomega.Gomega) *corev1.ConfigMap {
 	return func(g gomega.Gomega) *corev1.ConfigMap {
-		configmap, err := t.Client().Core().Cluster(logicalcluster.From(namespace)).CoreV1().ConfigMaps(namespace.Name).Get(t.Ctx(), name, metav1.GetOptions{})
+		configmap, err := t.Client().Core().Cluster(logicalcluster.From(namespace).Path()).CoreV1().ConfigMaps(namespace.Name).Get(t.Ctx(), name, metav1.GetOptions{})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return configmap
 	}

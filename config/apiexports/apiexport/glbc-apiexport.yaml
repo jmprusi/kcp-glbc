@@ -1,24 +1,29 @@
-apiVersion: apis.kcp.dev/v1alpha1
+apiVersion: apis.kcp.io/v1alpha1
 kind: APIExport
 metadata:
   annotations: {}
   name: glbc
 spec:
   latestResourceSchemas:
-  - latest.dnsrecords.kuadrant.dev
-  - latest.domainverifications.kuadrant.dev
+    - latest.dnsrecords.kuadrant.dev
+    - latest.domainverifications.kuadrant.dev
   permissionClaims:
-  - group: ""
-    resource: secrets
-  - group: ""
-    identityHash: DUMMY_HASH
-    resource: services
-  - group: apps
-    identityHash: DUMMY_HASH
-    resource: deployments
-  - group: networking.k8s.io
-    identityHash: DUMMY_HASH
-    resource: ingresses
-  - group: "route.openshift.io"
-    resource: "routes"
-    identityHash: DUMMY_HASH
+    - group: ""
+      resource: secrets
+      all: true
+    - group: ""
+      identityHash: DUMMY_HASH
+      resource: services
+      all: true
+    - group: apps
+      identityHash: DUMMY_HASH
+      resource: deployments
+      all: true
+    - group: networking.k8s.io
+      identityHash: DUMMY_HASH
+      resource: ingresses
+      all: true
+    - group: "route.openshift.io"
+      resource: "routes"
+      identityHash: DUMMY_HASH
+      all: true

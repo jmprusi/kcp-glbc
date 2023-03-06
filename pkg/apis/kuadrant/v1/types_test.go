@@ -1,8 +1,9 @@
 package v1
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestGetToken(t *testing.T) {
@@ -20,7 +21,7 @@ func TestGetToken(t *testing.T) {
 			},
 			verify: func(obj DomainVerification, t *testing.T) {
 
-				expectedToken := "7K2kvu2bO7fC331UKtz4EEM2KdaLldG0wLHwKt"
+				expectedToken := "aAkHCkvjglfF66mdhRcVKb0I3FT1lepYlWZNwj"
 
 				if obj.GetToken() != expectedToken {
 					t.Errorf("expected Token '%s' to match expectedToken: '%s'", obj.GetToken(), expectedToken)

@@ -6,17 +6,19 @@ import (
 	"sync"
 	"time"
 
+	kcpkubeclient "github.com/kcp-dev/client-go/kubernetes"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	v1 "github.com/kuadrant/kcp-glbc/pkg/apis/kuadrant/v1"
-	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned"
-	"github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/informers/externalversions"
+	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned/cluster"
+	externalversions "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/informers/externalversions"
 	kuadrantv1list "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/listers/kuadrant/v1"
 	"github.com/kuadrant/kcp-glbc/pkg/dns"
 	basereconciler "github.com/kuadrant/kcp-glbc/pkg/reconciler"
@@ -57,7 +59,7 @@ func NewController(config *ControllerConfig) (*Controller, error) {
 	})
 
 	c.indexer = c.sharedInformerFactory.Kuadrant().V1().DomainVerifications().Informer().GetIndexer()
-	c.domainVerificationLister = c.sharedInformerFactory.Kuadrant().V1().DomainVerifications().Lister()
+	c.domainVerificationLister = c.sharedInformerFactory.Kuadrant().V1().DomainVerifications().Cluster(logicalcluster.Name(logicalcluster.Wildcard.String())).Lister()
 	return c, nil
 
 }
@@ -67,7 +69,7 @@ type Controller struct {
 	indexer                  cache.Indexer
 	domainVerificationLister kuadrantv1list.DomainVerificationLister
 	domainVerificationClient kuadrantv1.ClusterInterface
-	KCPKubeClient            kubernetes.ClusterInterface
+	KCPKubeClient            kcpkubeclient.ClusterInterface
 	KubeClient               kubernetes.Interface
 	sharedInformerFactory    externalversions.SharedInformerFactory
 	dnsVerifier              DNSVerifier
@@ -75,7 +77,7 @@ type Controller struct {
 
 type ControllerConfig struct {
 	*basereconciler.ControllerConfig
-	KCPKubeClient            kubernetes.ClusterInterface
+	KCPKubeClient            kcpkubeclient.ClusterInterface
 	KubeClient               *kubernetes.Clientset
 	DomainVerificationClient kuadrantv1.ClusterInterface
 	SharedInformerFactory    externalversions.SharedInformerFactory
@@ -102,7 +104,7 @@ func (c *Controller) process(ctx context.Context, key string) error {
 	}
 
 	if !equality.Semantic.DeepEqual(previous.Status, current.Status) {
-		refresh, err := c.domainVerificationClient.Cluster(logicalcluster.From(current)).KuadrantV1().DomainVerifications().UpdateStatus(ctx, current, metav1.UpdateOptions{})
+		refresh, err := c.domainVerificationClient.Cluster(logicalcluster.From(current).Path()).KuadrantV1().DomainVerifications().UpdateStatus(ctx, current, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("could not update status: %v", err)
 		}
@@ -110,7 +112,7 @@ func (c *Controller) process(ctx context.Context, key string) error {
 	}
 
 	if !equality.Semantic.DeepEqual(previous, current) {
-		_, err := c.domainVerificationClient.Cluster(logicalcluster.From(current)).KuadrantV1().DomainVerifications().Update(ctx, current, metav1.UpdateOptions{})
+		_, err := c.domainVerificationClient.Cluster(logicalcluster.From(current).Path()).KuadrantV1().DomainVerifications().Update(ctx, current, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("could not update object: %v", err)
 		}

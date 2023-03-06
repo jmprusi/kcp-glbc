@@ -7,18 +7,17 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	workload "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
 	"github.com/kuadrant/kcp-glbc/pkg/_internal/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
 
 const (
-	WorkloadTargetLabel          = "state.workload.kcp.dev/"
-	SyncerFinalizer              = "workload.kcp.dev/syncer-"
-	WorkloadClusterSoftFinalizer = "finalizers.workload.kcp.dev"
-	WorkloadStatusAnnotation     = "experimental.status.workload.kcp.dev/"
+	WorkloadTargetLabel          = "state.workload.kcp.io/"
+	SyncerFinalizer              = "workload.kcp.io/syncer-"
+	WorkloadClusterSoftFinalizer = "finalizers.workload.kcp.io"
 	WorkloadDeletingAnnotation   = workload.InternalClusterDeletionTimestampAnnotationPrefix
 	SoftFinalizer                = "kuadrant.dev/glbc-migration"
 	DeleteAtAnnotation           = "kuadrant.dev/glbc-delete-at"
@@ -75,7 +74,7 @@ func gracefulRemoveSoftFinalizers(obj metav1.Object, queue workqueue.RateLimitin
 		if !metadata.HasAnnotation(obj, clusterDeleteAtAnnotation) {
 			metadata.AddAnnotation(obj, clusterDeleteAtAnnotation, strconv.FormatInt(at.Unix(), 10))
 			// requeue object
-			key, err := cache.MetaNamespaceKeyFunc(obj)
+			key, err := kcpcache.MetaClusterNamespaceKeyFunc(obj)
 			if err != nil {
 				return
 			}
@@ -93,7 +92,7 @@ func gracefulRemoveSoftFinalizers(obj metav1.Object, queue workqueue.RateLimitin
 			} else {
 				//requeue object
 				queueFor := int64(deleteAt) - time.Now().Unix()
-				key, err := cache.MetaNamespaceKeyFunc(obj)
+				key, err := kcpcache.MetaClusterNamespaceKeyFunc(obj)
 				if err != nil {
 					return
 				}

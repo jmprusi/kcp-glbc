@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/kuadrant/kcp-glbc/pkg/_internal/metadata"

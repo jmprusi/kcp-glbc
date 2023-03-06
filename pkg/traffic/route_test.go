@@ -30,10 +30,10 @@ func TestApplyTransformsRoute(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test",
 				Annotations: map[string]string{
-					"experimental.status.workload.kcp.dev/c1": "",
+					"experimental.status.workload.kcp.io/c1": "",
 				},
 				Labels: map[string]string{
-					"state.workload.kcp.dev/c1": "Sync",
+					"state.workload.kcp.io/c1": "Sync",
 				},
 			},
 			Spec: routev1.RouteSpec{
@@ -55,10 +55,10 @@ func TestApplyTransformsRoute(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test",
 				Annotations: map[string]string{
-					"experimental.status.workload.kcp.dev/c1": "",
+					"experimental.status.workload.kcp.io/c1": "",
 				},
 				Labels: map[string]string{
-					"state.workload.kcp.dev/c1": "Sync",
+					"state.workload.kcp.io/c1": "Sync",
 				},
 			},
 			Spec: routev1.RouteSpec{
@@ -143,9 +143,10 @@ func TestGetDNSTargetsRoute(t *testing.T) {
 					},
 				},
 			}
-			c1, _ := json.Marshal(status)
+			routeC1 := routev1.Route{Status: status}
+			jsonRouteC1, _ := json.Marshal(routeC1)
 			r.Annotations = map[string]string{}
-			r.Annotations[workload.InternalClusterStatusAnnotationPrefix+fmt.Sprintf(clusterFmt, 0)] = string(c1)
+			r.Annotations[workload.InternalSyncerViewAnnotationPrefix+fmt.Sprintf(clusterFmt, 0)] = string(jsonRouteC1)
 			return r
 		},
 		Validate: func(t []dns.Target) error {
@@ -190,11 +191,13 @@ func TestGetDNSTargetsRoute(t *testing.T) {
 						},
 					},
 				}
-				c1, _ := json.Marshal(c1status)
+				routeC1 := routev1.Route{Status: c1status}
+				jsonRouteC1, _ := json.Marshal(routeC1)
 				r.Annotations = map[string]string{}
-				r.Annotations[workload.InternalClusterStatusAnnotationPrefix+fmt.Sprintf(clusterFmt, 0)] = string(c1)
-				c2, _ := json.Marshal(c2status)
-				r.Annotations[workload.InternalClusterStatusAnnotationPrefix+fmt.Sprintf(clusterFmt, 1)] = string(c2)
+				r.Annotations[workload.InternalSyncerViewAnnotationPrefix+fmt.Sprintf(clusterFmt, 0)] = string(jsonRouteC1)
+				routeC2 := routev1.Route{Status: c2status}
+				jsonRouteC2, _ := json.Marshal(routeC2)
+				r.Annotations[workload.InternalSyncerViewAnnotationPrefix+fmt.Sprintf(clusterFmt, 1)] = string(jsonRouteC2)
 				return r
 			},
 			Validate: func(t []dns.Target) error {

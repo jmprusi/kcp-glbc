@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 const ComputeServiceExportName = "kubernetes"
@@ -50,9 +50,9 @@ func (o *withExportReference) applyTo(to interface{}) error {
 	if !ok {
 		return fmt.Errorf("cannot apply WithExportReference option to %q", to)
 	}
-	binding.Spec.Reference.Workspace = &apisv1alpha1.WorkspaceExportReference{
-		Path:       o.path.String(),
-		ExportName: o.exportName,
+	binding.Spec.Reference.Export = &apisv1alpha1.ExportBindingReference{
+		Path: o.path.String(),
+		Name: o.exportName,
 	}
 	return nil
 }
@@ -68,6 +68,7 @@ func WithGLBCAcceptablePermissionClaims(identityHash string) Option {
 						Group:    "",
 						Resource: "secrets",
 					},
+					All: true,
 				},
 				State: apisv1alpha1.ClaimAccepted,
 			},
@@ -78,6 +79,7 @@ func WithGLBCAcceptablePermissionClaims(identityHash string) Option {
 						Resource: "services",
 					},
 					IdentityHash: identityHash,
+					All:          true,
 				},
 				State: apisv1alpha1.ClaimAccepted,
 			},
@@ -88,6 +90,7 @@ func WithGLBCAcceptablePermissionClaims(identityHash string) Option {
 						Resource: "deployments",
 					},
 					IdentityHash: identityHash,
+					All:          true,
 				},
 				State: apisv1alpha1.ClaimAccepted,
 			},
@@ -98,6 +101,7 @@ func WithGLBCAcceptablePermissionClaims(identityHash string) Option {
 						Resource: "ingresses",
 					},
 					IdentityHash: identityHash,
+					All:          true,
 				},
 				State: apisv1alpha1.ClaimAccepted,
 			},
@@ -108,6 +112,7 @@ func WithGLBCAcceptablePermissionClaims(identityHash string) Option {
 						Resource: "routes",
 					},
 					IdentityHash: identityHash,
+					All:          true,
 				},
 				State: apisv1alpha1.ClaimAccepted,
 			},
@@ -146,9 +151,9 @@ func createAPIBinding(t Test, name string, options ...Option) *apisv1alpha1.APIB
 		t.Expect(option.applyTo(binding)).To(gomega.Succeed())
 	}
 
-	t.Expect(binding.Spec.Reference.Workspace).NotTo(gomega.BeNil())
+	t.Expect(binding.Spec.Reference.Export.Name).NotTo(gomega.BeNil())
 
-	binding, err := t.Client().Kcp().Cluster(logicalcluster.From(binding)).ApisV1alpha1().APIBindings().
+	binding, err := t.Client().Kcp().Cluster(logicalcluster.From(binding).Path()).ApisV1alpha1().APIBindings().
 		Create(t.Ctx(), binding, metav1.CreateOptions{})
 	t.Expect(err).NotTo(gomega.HaveOccurred())
 
@@ -157,7 +162,7 @@ func createAPIBinding(t Test, name string, options ...Option) *apisv1alpha1.APIB
 
 func APIBinding(t Test, workspace, name string) func(g gomega.Gomega) *apisv1alpha1.APIBinding {
 	return func(g gomega.Gomega) *apisv1alpha1.APIBinding {
-		c, err := t.Client().Kcp().Cluster(logicalcluster.New(workspace)).ApisV1alpha1().APIBindings().Get(t.Ctx(), name, metav1.GetOptions{})
+		c, err := t.Client().Kcp().Cluster(logicalcluster.Name(workspace).Path()).ApisV1alpha1().APIBindings().Get(t.Ctx(), name, metav1.GetOptions{})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return c
 	}

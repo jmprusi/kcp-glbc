@@ -74,7 +74,7 @@ GLBC_WORKSPACE=root:kuadrant
 KUBECONFIG_KCP_ADMIN=.kcp/admin.kubeconfig
 KUBECONFIG_KCP_GLBC=${TEMP_DIR}/kcp.kubeconfig
 
-: ${KCP_VERSION:="release-0.9"}
+: ${KCP_VERSION:="v0.11.0"}
 KCP_SYNCER_IMAGE="ghcr.io/kcp-dev/kcp/syncer:${KCP_VERSION}"
 
 : ${GLBC_DEPLOYMENTS_DIR=${KCP_GLBC_DIR}/config/deploy}
@@ -139,7 +139,7 @@ createKINDCluster() {
 
   if [[ ${ingress} == "true" ]]; then
     echo "Deploying Ingress controller to ${1}"
-    VERSION=controller-v1.2.1
+    VERSION=controller-v1.5.1
     curl https://raw.githubusercontent.com/kubernetes/ingress-nginx/"${VERSION}"/deploy/static/provider/kind/deploy.yaml | sed "s/--publish-status-address=localhost/--report-node-internal-ip-address/g" | kubectl apply -f -
     kubectl annotate ingressclass nginx "ingressclass.kubernetes.io/is-default-class=true"
     echo "Waiting for deployments to be ready ..."
@@ -160,16 +160,13 @@ createKINDSyncTarget() {
   echo "Deploying kcp syncer to ${1} with traffic type ${4}"
   KUBECONFIG=${KUBECONFIG_KCP_ADMIN} kubectl create namespace kcp-syncer --dry-run=client -o yaml | kubectl --kubeconfig=${KUBECONFIG_KCP_ADMIN} apply -f -
   if [[ $4 == "routes" ]]; then
-    KUBECONFIG=${KUBECONFIG_KCP_ADMIN} ${KUBECTL_KCP_BIN} workload sync ${clusterName} --kcp-namespace kcp-syncer --syncer-image=${KCP_SYNCER_IMAGE} --resources=routes.route.openshift.io,services --output-file ${SYNC_TARGETS_DIR}/${clusterName}-syncer.yaml
+    KUBECONFIG=${KUBECONFIG_KCP_ADMIN} ${KUBECTL_KCP_BIN} workload sync ${clusterName}  --apiexports="root:kuadrant:kubernetes" --kcp-namespace kcp-syncer --syncer-image=${KCP_SYNCER_IMAGE} --resources=routes.route.openshift.io,services,pods,deployments.apps --output-file ${SYNC_TARGETS_DIR}/${clusterName}-syncer.yaml
     KUBECONFIG=${KUBECONFIG_KCP_ADMIN} kubectl label --overwrite synctarget ${clusterName} kuadrant.dev/cluster-type=glbc-routes
     ${SED} -i '/^  - routes$/a \ \ - routes/custom-host' ${SYNC_TARGETS_DIR}/${clusterName}-syncer.yaml
   else 
-    KUBECONFIG=${KUBECONFIG_KCP_ADMIN} ${KUBECTL_KCP_BIN} workload sync ${clusterName} --kcp-namespace kcp-syncer --syncer-image=${KCP_SYNCER_IMAGE} --resources=ingresses.networking.k8s.io,services --output-file ${SYNC_TARGETS_DIR}/${clusterName}-syncer.yaml
+    KUBECONFIG=${KUBECONFIG_KCP_ADMIN} ${KUBECTL_KCP_BIN} workload sync ${clusterName} --apiexports="root:kuadrant:kubernetes" --kcp-namespace kcp-syncer --syncer-image=${KCP_SYNCER_IMAGE} --resources=ingresses.networking.k8s.io,services,pods,deployments.apps --output-file ${SYNC_TARGETS_DIR}/${clusterName}-syncer.yaml
     KUBECONFIG=${KUBECONFIG_KCP_ADMIN} kubectl label --overwrite synctarget ${clusterName} kuadrant.dev/cluster-type=glbc-ingresses
   fi
-  # Enable advanced scheduling
-  echo "Enabling advanced scheduling"
-  KUBECONFIG=${KUBECONFIG_KCP_ADMIN} kubectl annotate --overwrite synctarget ${clusterName} featuregates.experimental.workload.kcp.dev/advancedscheduling='true'
   KUBECONFIG=${KUBECONFIG_KCP_ADMIN} kubectl label --overwrite synctarget ${clusterName} kuadrant.dev/synctarget=${clusterName}
   KUBECONFIG=${KUBECONFIG_KCP_ADMIN} kubectl get synctargets ${clusterName} -o json | jq .metadata.annotations
 
@@ -202,8 +199,8 @@ if ! ps -p ${KCP_PID}; then
 fi
 
 echo "Waiting for KCP server to be ready..."
-wait_for "grep 'Bootstrapped ClusterWorkspaceShard root|root' ${KCP_LOG_FILE}" "kcp" "1m" "5"
-sleep 5
+wait_for "grep 'finished bootstrapping root compute workspace' ${KCP_LOG_FILE}" "kcp" "1m" "5"
+sleep 10
 
 (cd ${KCP_GLBC_DIR} && make generate-ld-config)
 

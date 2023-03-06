@@ -39,16 +39,26 @@ DO_BREW := true
 USE_CRC := false
 CREATE_KIND_ROUTE_SYNC_TARGET := false
 RUN_GLBC := false
-KCP_BRANCH := release-0.9
+KCP_BRANCH := v0.11.0
 
 IMAGE_TAG_BASE ?= quay.io/kuadrant/kcp-glbc
 IMAGE_TAG ?= latest
 IMG ?= $(IMAGE_TAG_BASE):$(IMAGE_TAG)
 
+BOILERPLATE_HEADER := $(shell pwd)/hack/boilerplate/boilerplate.go.txt
+export BOILERPLATE_HEADER
+
 KUBECONFIG ?= $(shell pwd)/.kcp/admin.kubeconfig
 CLUSTERS_KUBECONFIG_DIR ?= $(shell pwd)/tmp
 
 PROMTOOL_IMAGE := quay.io/prometheus/prometheus:v2.36.2
+
+GO_INSTALL = ./hack/go-install.sh
+
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN): ## Ensure that the directory exists
+	mkdir -p $(LOCALBIN)
 
 .PHONY: all
 all: build
@@ -67,8 +77,19 @@ clean: clean-ld-apiexports clean-ld-synctargets ## Clean up temporary files.
 	-rm -f ./bin/*
 	-rm -rf ./tmp
 
+
+CODE_GENERATOR_VER := v2.0.0-alpha.1
+CODE_GENERATOR_BIN := code-generator
+CODE_GENERATOR := $(LOCALBIN)/$(CODE_GENERATOR_BIN)
+export CODE_GENERATOR # so hack scripts can use it
+$(CODE_GENERATOR):
+	GOBIN=$(LOCALBIN) $(GO_INSTALL) github.com/kcp-dev/code-generator/v2 $(CODE_GENERATOR_BIN) $(CODE_GENERATOR_VER)
+
+get-modules:
+	go mod download
+
 .PHONY: generate
-generate: generate-deepcopy generate-crd generate-client ## Generate code containing DeepCopy method implementations, CustomResourceDefinition objects and Clients.
+generate: get-modules $(CODE_GENERATOR) controller-gen generate-deepcopy generate-crd generate-client ## Generate code containing DeepCopy method implementations, CustomResourceDefinition objects and Clients.
 
 .PHONY: generate-deepcopy
 generate-deepcopy: controller-gen
@@ -80,7 +101,7 @@ generate-crd: controller-gen
 
 .PHONY: generate-client
 generate-client:
-	./scripts/gen_client.sh
+	./hack/gen_client.sh
 
 .PHONY: vendor
 vendor: ## Vendor the dependencies.
@@ -123,6 +144,11 @@ e2e: build ## Run e2e tests.
 e2e-ingress: build
 	KUBECONFIG="$(KUBECONFIG)" CLUSTERS_KUBECONFIG_DIR="$(CLUSTERS_KUBECONFIG_DIR)" \
 	go test -count=1 -timeout 60m -v ./test/e2e/ingress_test.go -tags=e2e
+
+.PHONY: e2e-routes
+e2e-routes: build
+	KUBECONFIG="$(KUBECONFIG)" CLUSTERS_KUBECONFIG_DIR="$(CLUSTERS_KUBECONFIG_DIR)" \
+	go test -count=1 -timeout 60m -v ./test/e2e/route_test.go -tags=e2e
 
 TEST_DNSRECORD_COUNT ?= 2
 TEST_INGRESS_COUNT ?= 2
@@ -252,22 +278,20 @@ local-setup: clean kind kcp kustomize helm build ## Setup kcp locally using kind
 
 ##@ Build Dependencies
 
-## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN): ## Ensure that the directory exists
-	mkdir -p $(LOCALBIN)
 
 ## Tool Binaries
 KCP ?= $(LOCALBIN)/kcp
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+CONTROLLER_GEN_BIN ?= controller-gen
+CONTROLLER_GEN ?= $(LOCALBIN)/$(CONTROLLER_GEN_BIN)
+export CONTROLLER_GEN
 KIND ?= $(LOCALBIN)/kind
 HELM ?= $(LOCALBIN)/helm
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.4
-CONTROLLER_TOOLS_VERSION ?= v0.8.0
-KIND_VERSION ?= v0.14.0
+CONTROLLER_TOOLS_VERSION ?= v0.10.0
+KIND_VERSION ?= v0.17.0
 HELM_VERSION ?= v3.10.0
 
 .PHONY: kcp
@@ -282,7 +306,7 @@ $(KCP):
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN):
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+	GOBIN=$(LOCALBIN) $(GO_INSTALL) sigs.k8s.io/controller-tools/cmd/controller-gen $(CONTROLLER_GEN_BIN) $(CONTROLLER_TOOLS_VERSION)
 
 .PHONY: kind
 kind: $(KIND) ## Download kind locally if necessary.

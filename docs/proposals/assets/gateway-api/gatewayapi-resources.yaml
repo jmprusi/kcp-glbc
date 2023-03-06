@@ -1,5 +1,5 @@
 ---
-apiVersion: apis.kcp.dev/v1alpha1
+apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   annotations:
@@ -1277,7 +1277,7 @@ spec:
       subresources:
         status: {}
 ---
-apiVersion: apis.kcp.dev/v1alpha1
+apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   annotations:
@@ -1415,7 +1415,7 @@ spec:
       storage: true
       subresources: {}
 ---
-apiVersion: apis.kcp.dev/v1alpha1
+apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   annotations:
@@ -1840,7 +1840,7 @@ spec:
       subresources:
         status: {}
 ---
-apiVersion: apis.kcp.dev/v1alpha1
+apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   annotations:
@@ -2314,7 +2314,7 @@ spec:
       subresources:
         status: {}
 ---
-apiVersion: apis.kcp.dev/v1alpha1
+apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   annotations:

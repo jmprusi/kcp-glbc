@@ -1,28 +1,33 @@
-apiVersion: apis.kcp.dev/v1alpha1
+apiVersion: apis.kcp.io/v1alpha1
 kind: APIBinding
 metadata:
   annotations: {}
   name: glbc
 spec:
   permissionClaims:
-  - resource: secrets
-    state: "Accepted"
-  - identityHash: DUMMY_HASH
-    resource: services
-    state: "Accepted"
-  - group: apps
-    identityHash: DUMMY_HASH
-    resource: deployments
-    state: "Accepted"
-  - group: networking.k8s.io
-    identityHash: DUMMY_HASH
-    resource: ingresses
-    state: "Accepted"
-  - group: "route.openshift.io"
-    resource: "routes"
-    identityHash: DUMMY_HASH
-    state: "Accepted"
+    - resource: secrets
+      state: "Accepted"
+      all: true
+    - identityHash: DUMMY_HASH
+      resource: services
+      state: "Accepted"
+      all: true
+    - group: apps
+      identityHash: DUMMY_HASH
+      resource: deployments
+      state: "Accepted"
+      all: true
+    - group: networking.k8s.io
+      identityHash: DUMMY_HASH
+      resource: ingresses
+      state: "Accepted"
+      all: true
+    - group: "route.openshift.io"
+      resource: "routes"
+      identityHash: DUMMY_HASH
+      state: "Accepted"
+      all: true
   reference:
-    workspace:
-      exportName: glbc
+    export:
+      name: glbc-root-kuadrant
       path: root:kuadrant

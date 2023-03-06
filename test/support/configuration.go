@@ -25,7 +25,9 @@ import (
 )
 
 func IngressConfiguration(namespace, name, serviceName, host string) *networkingv1apply.IngressApplyConfiguration {
-	return networkingv1apply.Ingress(name, namespace).WithSpec(
+	return networkingv1apply.Ingress(name, namespace).WithAnnotations(map[string]string{
+		"experimental.summarizing.workload.kcp.io": `[{"fieldPath": "status", "promoteToUpstream": false}]`,
+	}).WithSpec(
 		networkingv1apply.IngressSpec().WithRules(networkingv1apply.IngressRule().
 			WithHost(host).
 			WithHTTP(networkingv1apply.HTTPIngressRuleValue().

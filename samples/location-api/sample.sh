@@ -35,7 +35,7 @@ kubectl apply -f ${SCRIPT_DIR}/locations.yaml
 echo "creating placement in home workspace"
 kubectl kcp workspace ${HOME_WORKSPACE}
 echo "creating apibindings in home workspace"
-kubectl apply -f config/apiexports/kubernetes/kubernetes-apibinding.yaml
+# kubectl apply -f config/apiexports/kubernetes/kubernetes-apibinding.yaml
 kubectl apply -f config/deploy/local/kcp-glbc/apiexports/glbc/glbc-apibinding.yaml
 kubectl apply -f ${SCRIPT_DIR}/placement-1.yaml
 kubectl delete placement default

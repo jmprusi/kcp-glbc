@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kcp-dev/logicalcluster/v2"
-
+	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
+	"github.com/kcp-dev/logicalcluster/v3"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/strings/slices"
 
 	workload "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
@@ -199,20 +198,20 @@ func (a *Ingress) Transform(old Interface) error {
 func (a *Ingress) getStatuses() (map[logicalcluster.Name]networkingv1.IngressStatus, error) {
 	statuses := map[logicalcluster.Name]networkingv1.IngressStatus{}
 	for k, v := range a.Annotations {
-		status := networkingv1.IngressStatus{}
-		if !strings.Contains(k, workload.InternalClusterStatusAnnotationPrefix) {
+		ingress := networkingv1.Ingress{}
+		if !strings.Contains(k, workload.InternalSyncerViewAnnotationPrefix) {
 			continue
 		}
 		annotationParts := strings.Split(k, "/")
 		if len(annotationParts) < 2 {
-			return nil, fmt.Errorf("advanced scheduling annotation malformed %s value %s", workload.InternalClusterStatusAnnotationPrefix, a.Annotations[k])
+			return nil, fmt.Errorf("advanced scheduling annotation malformed %s value %s", workload.InternalSyncerViewAnnotationPrefix, a.Annotations[k])
 		}
 		clusterName := annotationParts[1]
-		err := json.Unmarshal([]byte(v), &status)
+		err := json.Unmarshal([]byte(v), &ingress)
 		if err != nil {
 			return statuses, err
 		}
-		statuses[logicalcluster.New(clusterName)] = status
+		statuses[logicalcluster.Name(clusterName)] = ingress.Status
 	}
 
 	if !tmcEnabled(a) {
@@ -331,7 +330,7 @@ func (a *Ingress) GetNamespaceName() types.NamespacedName {
 }
 
 func (a *Ingress) GetCacheKey() string {
-	key, _ := cache.MetaNamespaceKeyFunc(a)
+	key, _ := kcpcache.MetaClusterNamespaceKeyFunc(a)
 	return key
 }
 

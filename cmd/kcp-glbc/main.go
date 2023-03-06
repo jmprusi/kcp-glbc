@@ -11,11 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kcp-dev/client-go/dynamic/dynamicinformer"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 
 	certmanclient "github.com/jetstack/cert-manager/pkg/client/clientset/versioned"
 	certmaninformer "github.com/jetstack/cert-manager/pkg/client/informers/externalversions"
@@ -25,22 +24,24 @@ import (
 	"github.com/kuadrant/kcp-glbc/pkg/reconciler/route"
 	"github.com/kuadrant/kcp-glbc/pkg/traffic"
 
+	kcpinformers "github.com/kcp-dev/client-go/informers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
+	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
+	kcpkubeclient "github.com/kcp-dev/client-go/kubernetes"
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
 	"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1/helper"
 	conditionsutil "github.com/kcp-dev/kcp/pkg/apis/third_party/conditions/util/conditions"
-	kcp "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
-	"github.com/kcp-dev/logicalcluster/v2"
+	kcp "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/cluster"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	"github.com/kuadrant/kcp-glbc/pkg/_internal/log"
-	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned"
+	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned/cluster"
 	kuadrantinformer "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/informers/externalversions"
 	"github.com/kuadrant/kcp-glbc/pkg/dns"
 	"github.com/kuadrant/kcp-glbc/pkg/domains/domainverification"
@@ -48,6 +49,7 @@ import (
 	"github.com/kuadrant/kcp-glbc/pkg/migration/deployment"
 	"github.com/kuadrant/kcp-glbc/pkg/migration/secret"
 	"github.com/kuadrant/kcp-glbc/pkg/migration/service"
+	"k8s.io/client-go/informers"
 
 	"github.com/kuadrant/kcp-glbc/pkg/_internal/env"
 	"github.com/kuadrant/kcp-glbc/pkg/reconciler"
@@ -80,7 +82,7 @@ var options struct {
 }
 
 type APIExportClusterInformers struct {
-	SharedInformerFactory         informers.SharedInformerFactory
+	SharedInformerFactory         kcpinformers.SharedInformerFactory
 	KuadrantSharedInformerFactory kuadrantinformer.SharedInformerFactory
 	KCPDynamicInformerFactory     dynamicinformer.DynamicSharedInformerFactory
 }
@@ -91,7 +93,7 @@ func init() {
 	// KCP client options
 	flagSet.StringVar(&options.GLBCWorkspace, "glbc-workspace", env.GetEnvString("GLBC_WORKSPACE", "root:kuadrant"), "The GLBC workspace")
 	flagSet.StringVar(&options.ExportName, "glbc-export", env.GetEnvString("GLBC_EXPORT", "glbc-root-kuadrant"), "comma separated list of glbc APIExport names")
-	flagSet.StringVar(&options.LogicalClusterTarget, "logical-cluster", env.GetEnvString("GLBC_LOGICAL_CLUSTER_TARGET", "*"), "set the target logical cluster")
+	flagSet.StringVar(&options.LogicalClusterTarget, "logical-cluster", env.GetEnvString("GLBC_LOGICAL_CLUSTER_TARGET", "root:kuadrant"), "set the target logical cluster")
 	flagSet.StringVar(&options.TLSProvider, "glbc-tls-provider", env.GetEnvString("GLBC_TLS_PROVIDER", "glbc-ca"), "The TLS certificate issuer, one of [glbc-ca, le-staging, le-production]")
 	// DNS management options
 	flagSet.StringVar(&options.Domain, "domain", env.GetEnvString("GLBC_DOMAIN", "dev.hcpapps.net"), "The domain to use to expose ingresses")
@@ -142,7 +144,7 @@ func main() {
 	kubeClient, err := kubernetes.NewForConfig(kcpClientConfig)
 	exitOnError(err, "Failed to create K8S client")
 
-	kcpClient, err := kcp.NewClusterForConfig(kcpClientConfig)
+	kcpClient, err := kcp.NewForConfig(kcpClientConfig)
 	exitOnError(err, "Failed to create KCP client")
 
 	// certificate client targeting the glbc workspace
@@ -194,7 +196,7 @@ func main() {
 	var apiExportClusterInformers []APIExportClusterInformers
 	var controllers []Controller
 	for _, name := range apiExportNames {
-		glbcAPIExport, err := kcpClient.Cluster(logicalcluster.New(options.GLBCWorkspace)).ApisV1alpha1().APIExports().Get(ctx, name, metav1.GetOptions{})
+		glbcAPIExport, err := kcpClient.Cluster(logicalcluster.Name(options.GLBCWorkspace).Path()).ApisV1alpha1().APIExports().Get(ctx, name, metav1.GetOptions{})
 		exitOnError(err, "Failed to get GLBC APIExport "+name)
 
 		glbcVirtualWorkspaceURL, glbcIdentityHash := getAPIExportVirtualWorkspaceURLAndIdentityHash(glbcAPIExport)
@@ -203,17 +205,18 @@ func main() {
 		glbcVWClientConfig := rest.CopyConfig(kcpClientConfig)
 		glbcVWClientConfig.Host = glbcVirtualWorkspaceURL
 
-		kcpKubeClient, err := kubernetes.NewClusterForConfig(glbcVWClientConfig)
+		kcpKubeClient, err := kcpkubeclient.NewForConfig(glbcVWClientConfig)
 		exitOnError(err, "Failed to create KCP core client")
-		kcpKubeInformerFactory := informers.NewSharedInformerFactory(kcpKubeClient.Cluster(logicalcluster.New(options.LogicalClusterTarget)), resyncPeriod)
 
-		kcpDynamicClient, err := dynamic.NewClusterForConfig(glbcVWClientConfig)
+		kcpKubeInformerFactory := kcpinformers.NewSharedInformerFactory(kcpKubeClient, resyncPeriod)
+
+		kcpDynamicClient, err := kcpdynamic.NewForConfig(glbcVWClientConfig)
 		exitOnError(err, "Failed to create KCP dynamic client")
-		kcpDynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(kcpDynamicClient.Cluster(logicalcluster.New(options.LogicalClusterTarget)), resyncPeriod)
+		kcpDynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(kcpDynamicClient, resyncPeriod)
 
-		kcpKuadrantClient, err := kuadrantv1.NewClusterForConfig(glbcVWClientConfig)
+		kcpKuadrantClient, err := kuadrantv1.NewForConfig(glbcVWClientConfig)
 		exitOnError(err, "Failed to create KCP kuadrant client")
-		kcpKuadrantInformerFactory := kuadrantinformer.NewSharedInformerFactory(kcpKuadrantClient.Cluster(logicalcluster.New(options.LogicalClusterTarget)), resyncPeriod)
+		kcpKuadrantInformerFactory := kuadrantinformer.NewSharedInformerFactory(kcpKuadrantClient, resyncPeriod)
 
 		clusterInformers := &APIExportClusterInformers{}
 		clusterInformers.SharedInformerFactory = kcpKubeInformerFactory
@@ -240,7 +243,7 @@ func main() {
 			Domain:                          options.Domain,
 			CertProvider:                    certProvider,
 			HostResolver:                    dnsClient,
-			GLBCWorkspace:                   logicalcluster.New(options.GLBCWorkspace),
+			GLBCWorkspace:                   logicalcluster.Name(options.GLBCWorkspace),
 		})
 
 		controllers = append(controllers, routeController)
@@ -259,7 +262,7 @@ func main() {
 			Domain:                   options.Domain,
 			CertProvider:             certProvider,
 			HostResolver:             dnsClient,
-			GLBCWorkspace:            logicalcluster.New(options.GLBCWorkspace),
+			GLBCWorkspace:            logicalcluster.Name(options.GLBCWorkspace),
 		})
 		controllers = append(controllers, ingressController)
 
@@ -283,7 +286,7 @@ func main() {
 			DomainVerificationClient: kcpKuadrantClient,
 			SharedInformerFactory:    kcpKuadrantInformerFactory,
 			DNSVerifier:              domainVerifier,
-			GLBCWorkspace:            logicalcluster.New(options.GLBCWorkspace),
+			GLBCWorkspace:            logicalcluster.Name(options.GLBCWorkspace),
 		})
 		exitOnError(err, "Failed to create DomainVerification controller")
 		controllers = append(controllers, domainVerificationController)
@@ -379,11 +382,13 @@ func getAPIExportVirtualWorkspaceURLAndIdentityHash(export *apisv1alpha1.APIExpo
 		exitOnError(fmt.Errorf("APIExport %s is not ready", helper.QualifiedObjectName(export)), "Failed to get APIExport virtual workspace URL")
 	}
 
+	//nolint:staticcheck // SA1019 Ignore the deprecation warnings
 	if len(export.Status.VirtualWorkspaces) != 1 {
 		// It's not clear how to handle multiple API export virtual workspace URLs. Let's fail fast.
 		exitOnError(fmt.Errorf("APIExport %s has multiple virtual workspace URLs", helper.QualifiedObjectName(export)), "Failed to get APIExport virtual workspace URL")
 	}
 
+	//nolint:staticcheck // SA1019 Ignore the deprecation warnings
 	return export.Status.VirtualWorkspaces[0].URL, export.Status.IdentityHash
 }
 

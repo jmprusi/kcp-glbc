@@ -33,13 +33,14 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 
+	// "github.com/kcp-dev/client-go/dynamic"
 	workloadv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
 	workloadplugin "github.com/kcp-dev/kcp/pkg/cliplugins/workload/plugin"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
+	"k8s.io/client-go/dynamic"
 )
 
 var (
@@ -154,7 +155,7 @@ func createSyncTarget(t Test, name string, options ...Option) (*workloadv1alpha1
 	t.Expect(err).NotTo(gomega.HaveOccurred())
 
 	// Get the workload cluster and return it
-	syncTarget, err := t.Client().Kcp().Cluster(config.workspace).WorkloadV1alpha1().SyncTargets().Get(t.Ctx(), name, metav1.GetOptions{})
+	syncTarget, err := t.Client().Kcp().Cluster(config.workspace.Path()).WorkloadV1alpha1().SyncTargets().Get(t.Ctx(), name, metav1.GetOptions{})
 	t.Expect(err).NotTo(gomega.HaveOccurred())
 
 	return syncTarget, cleanup
@@ -164,7 +165,7 @@ func deleteSyncTarget(t Test, syncTarget *workloadv1alpha1.SyncTarget) {
 	// It's not possible to use foreground propagation policy as kcp doesn't currently support
 	// garbage collection.
 	propagationPolicy := metav1.DeletePropagationBackground
-	err := t.Client().Kcp().Cluster(logicalcluster.From(syncTarget)).WorkloadV1alpha1().SyncTargets().Delete(t.Ctx(), syncTarget.Name, metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	err := t.Client().Kcp().Cluster(logicalcluster.From(syncTarget).Path()).WorkloadV1alpha1().SyncTargets().Delete(t.Ctx(), syncTarget.Name, metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 	t.Expect(err).NotTo(gomega.HaveOccurred())
 }
 
@@ -172,7 +173,7 @@ func applyKcpWorkloadSync(t Test, config *workloadClusterConfig) (func() error, 
 	cleanup := func() error { return nil }
 
 	// Configure workload plugin kubeconfig for test workspace
-	clusterServer := t.Client().GetConfig().Host + config.workspace.Path()
+	clusterServer := t.Client().GetConfig().Host + config.workspace.Path().String()
 	syncCommandOutput := new(bytes.Buffer)
 	syncOptions := workloadplugin.NewSyncOptions(genericclioptions.IOStreams{In: os.Stdin, Out: syncCommandOutput, ErrOut: os.Stderr})
 	syncOptions.KubectlOverrides.ClusterInfo.Server = clusterServer
@@ -259,7 +260,7 @@ func applyKcpWorkloadSync(t Test, config *workloadClusterConfig) (func() error, 
 
 func SyncTarget(t Test, workspace, name string) func(g gomega.Gomega) *workloadv1alpha1.SyncTarget {
 	return func(g gomega.Gomega) *workloadv1alpha1.SyncTarget {
-		c, err := t.Client().Kcp().Cluster(logicalcluster.New(workspace)).WorkloadV1alpha1().SyncTargets().Get(t.Ctx(), name, metav1.GetOptions{})
+		c, err := t.Client().Kcp().Cluster(logicalcluster.Name(workspace).Path()).WorkloadV1alpha1().SyncTargets().Get(t.Ctx(), name, metav1.GetOptions{})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return c
 	}

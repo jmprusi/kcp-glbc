@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	workload "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +31,7 @@ func TrafficRouteFromUnstructured(uRoute *unstructured.Unstructured) (*traffic.R
 
 func Route(t Test, namespace *corev1.Namespace, name string) func(g gomega.Gomega) *traffic.Route {
 	return func(g gomega.Gomega) *traffic.Route {
-		uRoute, err := t.Client().Dynamic().Cluster(logicalcluster.From(namespace)).Resource(Resource).Namespace(namespace.Name).Get(t.Ctx(), name, metav1.GetOptions{})
+		uRoute, err := t.Client().Dynamic().Cluster(logicalcluster.From(namespace).Path()).Resource(Resource).Namespace(namespace.Name).Get(t.Ctx(), name, metav1.GetOptions{})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 
 		route, err := TrafficRouteFromUnstructured(uRoute)
@@ -41,7 +41,7 @@ func Route(t Test, namespace *corev1.Namespace, name string) func(g gomega.Gomeg
 }
 
 func GetRoute(t Test, namespace *corev1.Namespace, name string) (*traffic.Route, error) {
-	uRoute, err := t.Client().Dynamic().Cluster(logicalcluster.From(namespace)).Resource(Resource).Namespace(namespace.Name).Get(t.Ctx(), name, metav1.GetOptions{})
+	uRoute, err := t.Client().Dynamic().Cluster(logicalcluster.From(namespace).Path()).Resource(Resource).Namespace(namespace.Name).Get(t.Ctx(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -159,13 +159,13 @@ func LBHostEqualToGeneratedHost(route *traffic.Route) bool {
 
 func LoadBalancerIngresses(route *traffic.Route) []routev1.RouteIngress {
 	for a, v := range route.Annotations {
-		if strings.Contains(a, workload.InternalClusterStatusAnnotationPrefix) {
-			routeStatus := routev1.RouteStatus{}
-			err := json.Unmarshal([]byte(v), &routeStatus)
+		if strings.Contains(a, workload.InternalSyncerViewAnnotationPrefix) {
+			newRoute := routev1.Route{}
+			err := json.Unmarshal([]byte(v), &newRoute)
 			if err != nil {
 				return []routev1.RouteIngress{}
 			}
-			return routeStatus.Ingress
+			return newRoute.Status.Ingress
 		}
 	}
 	return []routev1.RouteIngress{}

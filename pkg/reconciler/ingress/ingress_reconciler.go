@@ -6,15 +6,15 @@ import (
 	"strings"
 	"time"
 
+	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
+	"github.com/kuadrant/kcp-glbc/pkg/_internal/metadata"
+	"github.com/kuadrant/kcp-glbc/pkg/migration/workload"
+	"github.com/kuadrant/kcp-glbc/pkg/traffic"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilserrors "k8s.io/apimachinery/pkg/util/errors"
 	apiRuntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
-
-	"github.com/kuadrant/kcp-glbc/pkg/_internal/metadata"
-	"github.com/kuadrant/kcp-glbc/pkg/migration/workload"
-	"github.com/kuadrant/kcp-glbc/pkg/traffic"
 )
 
 func (c *Controller) reconcile(ctx context.Context, ingress traffic.Interface) error {
@@ -89,7 +89,7 @@ func (c *Controller) reconcile(ctx context.Context, ingress traffic.Interface) e
 }
 
 func objectKey(obj runtime.Object) cache.ExplicitKey {
-	key, _ := cache.MetaNamespaceKeyFunc(obj)
+	key, _ := kcpcache.MetaClusterNamespaceKeyFunc(obj)
 	return cache.ExplicitKey(key)
 }
 
@@ -105,7 +105,7 @@ func (c *Controller) enqueueIngresses(getIngresses func(obj interface{}) ([]*net
 		}
 
 		for _, ingress := range ingresses {
-			ingressKey, err := cache.MetaNamespaceKeyFunc(ingress)
+			ingressKey, err := kcpcache.MetaClusterNamespaceKeyFunc(ingress)
 			if err != nil {
 				apiRuntime.HandleError(err)
 				continue

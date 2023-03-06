@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/kuadrant/kcp-glbc/pkg/_internal/log"
@@ -59,7 +59,7 @@ func (c *ControllerConfig) GetName(defaultName string) string {
 }
 
 func (c *Controller) Enqueue(obj interface{}) {
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+	key, err := kcpcache.DeletionHandlingMetaClusterNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
 		return
@@ -68,7 +68,7 @@ func (c *Controller) Enqueue(obj interface{}) {
 }
 
 func (c *Controller) EnqueueAfter(obj interface{}, dur time.Duration) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
+	key, err := kcpcache.MetaClusterNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
 		return
@@ -129,7 +129,7 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 
 	// Re-enqueue up to 5 times
 	n := c.Queue.NumRequeues(key)
-	if n < 5 {
+	if n < 100 {
 		c.Logger.Error(err, "Re-queuing after reconciliation error", "key", key, "retries", n)
 		c.Queue.AddRateLimited(key)
 		return true

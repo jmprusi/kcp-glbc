@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	workload "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,7 +69,7 @@ type Interface interface {
 }
 
 func tmcEnabled(obj metav1.Object) bool {
-	has, _ := metadata.HasAnnotationsContaining(obj, workload.InternalClusterStatusAnnotationPrefix)
+	has, _ := metadata.HasAnnotationsContaining(obj, workload.InternalSyncerViewAnnotationPrefix)
 	return has
 }
 

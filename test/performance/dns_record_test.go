@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	"github.com/rs/xid"
@@ -44,8 +44,8 @@ func createTestDNSRecord(t Test, namespace *corev1.Namespace, domain string) *ku
 		},
 	}
 
-	t.Client().Kuadrant().Cluster(logicalcluster.From(namespace))
-	dnsRecord, err := t.Client().Kuadrant().Cluster(logicalcluster.From(namespace)).KuadrantV1().DNSRecords(namespace.Name).Create(t.Ctx(), dnsRecord, metav1.CreateOptions{})
+	t.Client().Kuadrant().Cluster(logicalcluster.From(namespace).Path())
+	dnsRecord, err := t.Client().Kuadrant().Cluster(logicalcluster.From(namespace).Path()).KuadrantV1().DNSRecords(namespace.Name).Create(t.Ctx(), dnsRecord, metav1.CreateOptions{})
 	t.Expect(err).NotTo(HaveOccurred())
 
 	return dnsRecord
@@ -53,7 +53,7 @@ func createTestDNSRecord(t Test, namespace *corev1.Namespace, domain string) *ku
 
 func deleteTestDNSRecord(t Test, namespace *corev1.Namespace, dnsRecord *kuadrantv1.DNSRecord) {
 	propagationPolicy := metav1.DeletePropagationBackground
-	err := t.Client().Kuadrant().Cluster(logicalcluster.From(namespace)).KuadrantV1().DNSRecords(dnsRecord.Namespace).Delete(t.Ctx(), dnsRecord.Name, metav1.DeleteOptions{
+	err := t.Client().Kuadrant().Cluster(logicalcluster.From(namespace).Path()).KuadrantV1().DNSRecords(dnsRecord.Namespace).Delete(t.Ctx(), dnsRecord.Name, metav1.DeleteOptions{
 		PropagationPolicy: &propagationPolicy,
 	})
 	t.Expect(err).NotTo(HaveOccurred())

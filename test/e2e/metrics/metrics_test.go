@@ -28,7 +28,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	"github.com/kuadrant/kcp-glbc/pkg/traffic"
 	. "github.com/kuadrant/kcp-glbc/test/support"
@@ -97,12 +97,12 @@ func TestMetrics(t *testing.T) {
 	name := "echo"
 
 	// Create the Deployment
-	_, err := test.Client().Core().Cluster(logicalcluster.From(namespace)).AppsV1().Deployments(namespace.Name).
+	_, err := test.Client().Core().Cluster(logicalcluster.From(namespace).Path()).AppsV1().Deployments(namespace.Name).
 		Apply(test.Ctx(), DeploymentConfiguration(namespace.Name, name), ApplyOptions)
 	test.Expect(err).NotTo(HaveOccurred())
 
 	// Create the Service
-	_, err = test.Client().Core().Cluster(logicalcluster.From(namespace)).CoreV1().Services(namespace.Name).
+	_, err = test.Client().Core().Cluster(logicalcluster.From(namespace).Path()).CoreV1().Services(namespace.Name).
 		Apply(test.Ctx(), ServiceConfiguration(namespace.Name, name, map[string]string{}), ApplyOptions)
 	test.Expect(err).NotTo(HaveOccurred())
 
@@ -110,7 +110,7 @@ func TestMetrics(t *testing.T) {
 	// where cert-manager is being too prompt to issue the TLS certificate (which turns out to be quick fast
 	// when using a CA issuer), and the below assertion happens too late to detect the pending TLS certificate request.
 	timer := time.AfterFunc(2*time.Second, func() {
-		_, err = test.Client().Core().Cluster(logicalcluster.From(namespace)).NetworkingV1().Ingresses(namespace.Name).
+		_, err = test.Client().Core().Cluster(logicalcluster.From(namespace).Path()).NetworkingV1().Ingresses(namespace.Name).
 			Apply(test.Ctx(), IngressConfiguration(namespace.Name, name, name, "test.gblb.com"), ApplyOptions)
 		test.Expect(err).NotTo(HaveOccurred())
 	})
@@ -187,7 +187,7 @@ func TestMetrics(t *testing.T) {
 	//))
 
 	// Finally, delete the Ingress and assert the metrics to cover the entire lifecycle
-	test.Expect(test.Client().Core().Cluster(logicalcluster.From(namespace)).NetworkingV1().Ingresses(namespace.Name).
+	test.Expect(test.Client().Core().Cluster(logicalcluster.From(namespace).Path()).NetworkingV1().Ingresses(namespace.Name).
 		Delete(test.Ctx(), name, metav1.DeleteOptions{})).
 		To(Succeed())
 

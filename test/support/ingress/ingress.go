@@ -28,7 +28,7 @@ import (
 
 	"github.com/kuadrant/kcp-glbc/pkg/traffic"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -42,7 +42,7 @@ func GetIngress(t Test, namespace *corev1.Namespace, name string) *traffic.Ingre
 
 func Ingress(t Test, namespace *corev1.Namespace, name string) func(g gomega.Gomega) *traffic.Ingress {
 	return func(g gomega.Gomega) *traffic.Ingress {
-		ingress, err := t.Client().Core().Cluster(logicalcluster.From(namespace)).NetworkingV1().Ingresses(namespace.Name).Get(t.Ctx(), name, metav1.GetOptions{})
+		ingress, err := t.Client().Core().Cluster(logicalcluster.From(namespace).Path()).NetworkingV1().Ingresses(namespace.Name).Get(t.Ctx(), name, metav1.GetOptions{})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return traffic.NewIngress(ingress)
 	}
@@ -129,7 +129,7 @@ func GetIngresses(t Test, namespace *corev1.Namespace, labelSelector string) []n
 
 func Ingresses(t Test, namespace *corev1.Namespace, labelSelector string) func(g gomega.Gomega) []networkingv1.Ingress {
 	return func(g gomega.Gomega) []networkingv1.Ingress {
-		ingresses, err := t.Client().Core().Cluster(logicalcluster.From(namespace)).NetworkingV1().Ingresses(namespace.Name).List(t.Ctx(), metav1.ListOptions{LabelSelector: labelSelector})
+		ingresses, err := t.Client().Core().Cluster(logicalcluster.From(namespace).Path()).NetworkingV1().Ingresses(namespace.Name).List(t.Ctx(), metav1.ListOptions{LabelSelector: labelSelector})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return ingresses.Items
 	}
@@ -137,13 +137,13 @@ func Ingresses(t Test, namespace *corev1.Namespace, labelSelector string) func(g
 
 func LoadBalancerIngresses(ingress *traffic.Ingress) []corev1.LoadBalancerIngress {
 	for a, v := range ingress.Annotations {
-		if strings.Contains(a, workload.InternalClusterStatusAnnotationPrefix) {
-			ingressStatus := networkingv1.IngressStatus{}
-			err := json.Unmarshal([]byte(v), &ingressStatus)
+		if strings.Contains(a, workload.InternalSyncerViewAnnotationPrefix) {
+			newIngress := networkingv1.Ingress{}
+			err := json.Unmarshal([]byte(v), &newIngress)
 			if err != nil {
 				return []corev1.LoadBalancerIngress{}
 			}
-			return ingressStatus.LoadBalancer.Ingress
+			return newIngress.Status.LoadBalancer.Ingress
 		}
 	}
 	return []corev1.LoadBalancerIngress{}

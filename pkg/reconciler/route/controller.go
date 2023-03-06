@@ -6,8 +6,13 @@ import (
 	"strings"
 
 	certman "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
-	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v2"
+	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
+	"github.com/kcp-dev/client-go/dynamic"
+	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/client-go/dynamic/dynamicinformer"
+	kcpinformers "github.com/kcp-dev/client-go/informers"
+	kcpkubeclient "github.com/kcp-dev/client-go/kubernetes"
+	"github.com/kcp-dev/logicalcluster/v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,9 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	apiRuntime "k8s.io/apimachinery/pkg/util/runtime"
 	runtimeUtils "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -29,13 +31,15 @@ import (
 
 	certmaninformer "github.com/jetstack/cert-manager/pkg/client/informers/externalversions"
 
+	"github.com/kcp-dev/kcp/config/rootcompute"
 	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/apis/kuadrant/v1"
-	kuadrantclientv1 "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned"
+	kuadrantclientv1 "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned/cluster"
 	kuadrantInformer "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/informers/externalversions"
 	"github.com/kuadrant/kcp-glbc/pkg/dns"
 	basereconciler "github.com/kuadrant/kcp-glbc/pkg/reconciler"
 	"github.com/kuadrant/kcp-glbc/pkg/tls"
 	"github.com/kuadrant/kcp-glbc/pkg/traffic"
+	"k8s.io/client-go/informers"
 )
 
 const (
@@ -49,7 +53,7 @@ func NewController(config *ControllerConfig) *Controller {
 	hostResolver := config.HostResolver
 	switch impl := hostResolver.(type) {
 	case *dns.ConfigMapHostResolver:
-		impl.Client = config.KCPKubeClient.Cluster(tenancyv1alpha1.RootCluster)
+		impl.Client = config.KCPKubeClient.Cluster(rootcompute.RootComputeClusterName)
 	}
 	hostResolver = dns.NewSafeHostResolver(hostResolver)
 
@@ -81,7 +85,7 @@ func NewController(config *ControllerConfig) *Controller {
 
 func (c *Controller) resourceExists() bool {
 	routeResource := schema.GroupVersionResource{Group: "route.openshift.io", Version: "v1", Resource: "routes"}
-	_, err := c.kcpKubeClient.Cluster(c.glbcWorkspace).Discovery().ServerResourcesForGroupVersion(routeResource.GroupVersion().String())
+	_, err := c.kubeClient.Discovery().ServerResourcesForGroupVersion(routeResource.GroupVersion().String())
 	return err == nil
 }
 
@@ -258,12 +262,12 @@ func (c *Controller) startWatches() {
 
 type ControllerConfig struct {
 	*basereconciler.ControllerConfig
-	KCPKubeClient     kubernetes.ClusterInterface
+	KCPKubeClient     kcpkubeclient.ClusterInterface
 	KubeClient        kubernetes.Interface
-	KubeDynamicClient dynamic.ClusterInterface
+	KubeDynamicClient kcpdynamic.ClusterInterface
 	DnsRecordClient   kuadrantclientv1.ClusterInterface
 	// informer for
-	KCPSharedInformerFactory        informers.SharedInformerFactory
+	KCPSharedInformerFactory        kcpinformers.SharedInformerFactory
 	KCPDynamicSharedInformerFactory dynamicinformer.DynamicSharedInformerFactory
 	CertificateInformer             certmaninformer.SharedInformerFactory
 	GlbcInformerFactory             informers.SharedInformerFactory
@@ -276,14 +280,14 @@ type ControllerConfig struct {
 
 type Controller struct {
 	*basereconciler.Controller
-	kcpKubeClient                kubernetes.ClusterInterface
+	kcpKubeClient                kcpkubeclient.ClusterInterface
 	kubeClient                   kubernetes.Interface
 	kubeDynamicClient            dynamic.ClusterInterface
-	sharedInformerFactory        informers.SharedInformerFactory
+	sharedInformerFactory        kcpinformers.SharedInformerFactory
 	dynamicSharedInformerFactory dynamicinformer.DynamicSharedInformerFactory
 	kuadrantClient               kuadrantclientv1.ClusterInterface
 	indexer                      cache.Indexer
-	routeLister                  cache.GenericLister
+	routeLister                  kcpcache.GenericClusterLister
 	certProvider                 tls.Provider
 	domain                       string
 	hostResolver                 dns.HostResolver
@@ -341,7 +345,7 @@ func (c *Controller) process(ctx context.Context, key string) error {
 		u = &unstructured.Unstructured{}
 		u.Object = raw
 		routeResource := schema.GroupVersionResource{Group: "route.openshift.io", Version: "v1", Resource: "routes"}
-		_, err = c.kubeDynamicClient.Cluster(logicalcluster.From(target)).Resource(routeResource).Namespace(target.Namespace).Update(ctx, u, metav1.UpdateOptions{})
+		_, err = c.kubeDynamicClient.Cluster(logicalcluster.From(target).Path()).Resource(routeResource).Namespace(target.Namespace).Update(ctx, u, metav1.UpdateOptions{})
 		return err
 	}
 
@@ -360,7 +364,7 @@ func (c *Controller) enqueueRoutes(getRoutes func(obj interface{}) ([]*routeapiv
 		}
 
 		for _, route := range routes {
-			trafficKey, err := cache.MetaNamespaceKeyFunc(route)
+			trafficKey, err := kcpcache.MetaClusterNamespaceKeyFunc(route)
 			if err != nil {
 				apiRuntime.HandleError(err)
 				continue
@@ -427,15 +431,15 @@ func (c *Controller) getRouteByKey(key string) (*routeapiv1.Route, error) {
 }
 
 func (c *Controller) getDomainVerifications(ctx context.Context, accessor traffic.Interface) (*kuadrantv1.DomainVerificationList, error) {
-	return c.kuadrantClient.Cluster(logicalcluster.From(accessor)).KuadrantV1().DomainVerifications().List(ctx, metav1.ListOptions{})
+	return c.kuadrantClient.Cluster(logicalcluster.From(accessor).Path()).KuadrantV1().DomainVerifications().List(ctx, metav1.ListOptions{})
 }
 
 func (c *Controller) getSecret(ctx context.Context, name, namespace string, cluster logicalcluster.Name) (*corev1.Secret, error) {
-	return c.kcpKubeClient.Cluster(cluster).CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	return c.kcpKubeClient.Cluster(cluster.Path()).CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 func (c *Controller) deleteTLSSecret(ctx context.Context, workspace logicalcluster.Name, namespace, name string) error {
-	if err := c.kcpKubeClient.Cluster(workspace).CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
+	if err := c.kcpKubeClient.Cluster(workspace.Path()).CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
 	return nil
@@ -443,7 +447,7 @@ func (c *Controller) deleteTLSSecret(ctx context.Context, workspace logicalclust
 
 func (c *Controller) copySecret(ctx context.Context, workspace logicalcluster.Name, namespace string, secret *corev1.Secret) error {
 	secret.ResourceVersion = ""
-	secretClient := c.kcpKubeClient.Cluster(workspace).CoreV1().Secrets(namespace)
+	secretClient := c.kcpKubeClient.Cluster(workspace.Path()).CoreV1().Secrets(namespace)
 	_, err := secretClient.Create(ctx, secret, metav1.CreateOptions{})
 	if err != nil && k8serrors.IsAlreadyExists(err) {
 		s, err := secretClient.Get(ctx, secret.Name, metav1.GetOptions{})
@@ -464,7 +468,7 @@ func (c *Controller) copySecret(ctx context.Context, workspace logicalcluster.Na
 }
 
 func (c *Controller) updateDNS(ctx context.Context, dns *kuadrantv1.DNSRecord) (*kuadrantv1.DNSRecord, error) {
-	updated, err := c.kuadrantClient.Cluster(logicalcluster.From(dns)).KuadrantV1().DNSRecords(dns.Namespace).Update(ctx, dns, metav1.UpdateOptions{})
+	updated, err := c.kuadrantClient.Cluster(logicalcluster.From(dns).Path()).KuadrantV1().DNSRecords(dns.Namespace).Update(ctx, dns, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -472,15 +476,15 @@ func (c *Controller) updateDNS(ctx context.Context, dns *kuadrantv1.DNSRecord) (
 }
 
 func (c *Controller) deleteDNS(ctx context.Context, accessor traffic.Interface) error {
-	return c.kuadrantClient.Cluster(logicalcluster.From(accessor)).KuadrantV1().DNSRecords(accessor.GetNamespace()).Delete(ctx, accessor.GetName(), metav1.DeleteOptions{})
+	return c.kuadrantClient.Cluster(logicalcluster.From(accessor).Path()).KuadrantV1().DNSRecords(accessor.GetNamespace()).Delete(ctx, accessor.GetName(), metav1.DeleteOptions{})
 }
 
 func (c *Controller) getDNS(ctx context.Context, accessor traffic.Interface) (*kuadrantv1.DNSRecord, error) {
-	return c.kuadrantClient.Cluster(logicalcluster.From(accessor)).KuadrantV1().DNSRecords(accessor.GetNamespace()).Get(ctx, accessor.GetName(), metav1.GetOptions{})
+	return c.kuadrantClient.Cluster(logicalcluster.From(accessor).Path()).KuadrantV1().DNSRecords(accessor.GetNamespace()).Get(ctx, accessor.GetName(), metav1.GetOptions{})
 }
 
 func (c *Controller) createDNS(ctx context.Context, dnsRecord *kuadrantv1.DNSRecord) (*kuadrantv1.DNSRecord, error) {
-	return c.kuadrantClient.Cluster(logicalcluster.From(dnsRecord)).KuadrantV1().DNSRecords(dnsRecord.Namespace).Create(ctx, dnsRecord, metav1.CreateOptions{})
+	return c.kuadrantClient.Cluster(logicalcluster.From(dnsRecord).Path()).KuadrantV1().DNSRecords(dnsRecord.Namespace).Create(ctx, dnsRecord, metav1.CreateOptions{})
 }
 
 func HostMatches(host, domain string) bool {
@@ -498,7 +502,7 @@ func HostMatches(host, domain string) bool {
 func (c *Controller) deleteRoute(ctx context.Context, o traffic.Interface) error {
 	routeResource := schema.GroupVersionResource{Group: "route.openshift.io", Version: "v1", Resource: "routes"}
 	r := o.(*traffic.Route)
-	err := c.kubeDynamicClient.Cluster(r.GetLogicalCluster()).Resource(routeResource).Namespace(r.GetNamespace()).Delete(ctx, r.GetName(), metav1.DeleteOptions{})
+	err := c.kubeDynamicClient.Cluster(r.GetLogicalCluster().Path()).Resource(routeResource).Namespace(r.GetNamespace()).Delete(ctx, r.GetName(), metav1.DeleteOptions{})
 	if k8serrors.IsNotFound(err) {
 		return nil
 	}
@@ -509,7 +513,7 @@ func (c *Controller) createOrUpdateRoute(ctx context.Context, o traffic.Interfac
 	routeResource := schema.GroupVersionResource{Group: "route.openshift.io", Version: "v1", Resource: "routes"}
 
 	r := o.(*traffic.Route)
-	u, err := c.kubeDynamicClient.Cluster(r.GetLogicalCluster()).Resource(routeResource).Namespace(r.GetNamespace()).Get(ctx, r.GetName(), metav1.GetOptions{})
+	u, err := c.kubeDynamicClient.Cluster(r.GetLogicalCluster().Path()).Resource(routeResource).Namespace(r.GetNamespace()).Get(ctx, r.GetName(), metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) { //doesn't exist, create it
 			c.Logger.Info("shadow creation", "shadow", r.Route)
@@ -517,7 +521,7 @@ func (c *Controller) createOrUpdateRoute(ctx context.Context, o traffic.Interfac
 			raw, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(r.Route)
 			u = &unstructured.Unstructured{}
 			u.Object = raw
-			_, err = c.kubeDynamicClient.Cluster(r.GetLogicalCluster()).Resource(routeResource).Namespace(r.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
+			_, err = c.kubeDynamicClient.Cluster(r.GetLogicalCluster().Path()).Resource(routeResource).Namespace(r.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("shadow creation error: %v", err.Error())
 			}
@@ -542,7 +546,7 @@ func (c *Controller) createOrUpdateRoute(ctx context.Context, o traffic.Interfac
 	}
 	post := &unstructured.Unstructured{}
 	post.Object = raw
-	_, err = c.kubeDynamicClient.Cluster(r.GetLogicalCluster()).Resource(routeResource).Namespace(r.GetNamespace()).Update(ctx, post, metav1.UpdateOptions{})
+	_, err = c.kubeDynamicClient.Cluster(r.GetLogicalCluster().Path()).Resource(routeResource).Namespace(r.GetNamespace()).Update(ctx, post, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("error updating shadow, err: %v", err)
 	}

@@ -12,6 +12,7 @@ Use this tutorial to perform the following actions:
 <br>
 
 **Tutorial Contents:**
+
 * [Prerequisites](#prerequisites)
 * [Install](#installation)
 * [Provide GLBC credentials](#provide-glbc-with-aws-credentials-and-configuration)
@@ -23,11 +24,13 @@ Use this tutorial to perform the following actions:
 ---
 
 ## Prerequisites
-- Install [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl).
-- Install Go 1.18 or higher. This is the version used in kcp-glbc as indicated in the [`go.mod`](/go.mod) file.
-- Install the [yq](https://github.com/mikefarah/yq) command-line YAML processor.
-- Have an AWS account, a DNS Zone, and a subdomain of the domain being used. You will need this in order to instruct GLBC to make use of your AWS credentials and configuration.
-- Add the `kcp-glbc/bin` directory to your `$PATH`
+
+* Install [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl).
+
+* Install Go 1.18 or higher. This is the version used in kcp-glbc as indicated in the [`go.mod`](/go.mod) file.
+* Install the [yq](https://github.com/mikefarah/yq) command-line YAML processor.
+* Have an AWS account, a DNS Zone, and a subdomain of the domain being used. You will need this in order to instruct GLBC to make use of your AWS credentials and configuration.
+* Add the `kcp-glbc/bin` directory to your `$PATH`
 
 <br>
 
@@ -45,6 +48,7 @@ Before deploying `kcp` and GLBC, we will want to provide GLBC with AWS credentia
       AWS_ACCESS_KEY_ID=EXAMPLEID2DJ3rSA3E
       AWS_SECRET_ACCESS_KEY=EXAMPLEKEYIEI034+fETFDS34QFAD0IAO
       ```
+
 1. Navigate to `./config/deploy/local/kcp-glbc/controller-config.env` and change the fields to resemble something similar to following:
 
    ```bash
@@ -60,27 +64,30 @@ Before deploying `kcp` and GLBC, we will want to provide GLBC with AWS credentia
    ```
 
    The fields that might need to be edited include:
-   - Replace `<AWS_DNS_PUBLIC_ZONE_ID>` with your own hosted zone ID
-   - Replace `<GLBC_DOMAIN>` with your specified subdomain
+   * Replace `<AWS_DNS_PUBLIC_ZONE_ID>` with your own hosted zone ID
+   * Replace `<GLBC_DOMAIN>` with your specified subdomain
 
 <br>
 
 ### Run `kcp` and GLBC
+
 Clone the repo. You would need to set `NUM_CLUSTERS=2`, and for simplicity set `RUN_GLBC=true` which will immediately run GLBC after
 the local-setup script has completed. After running the following command, we will have `kcp` and GLBC running:
 
 ```bash
 make local-setup NUM_CLUSTERS=2 DEPLOY_GLBC=true
 ```
+
 > NOTE: If errors are encountered during the local-setup, refer to the [Troubleshooting Installation](/docs/troubleshooting.md) document.
 
-This script performs the following actions: 
+This script performs the following actions:
+
 * Builds all the binaries
 * Deploys two Kubernetes 1.22 clusters locally using [kind](https://kind.sigs.k8s.io/)
 * Deploys and configures the ingress controllers in each cluster
 * Downloads kcp at the latest version integrated with GLBC
 * Starts the kcp server
-* Adds Kind clusters as sync targets 
+* Adds Kind clusters as sync targets
 * Deploy GLBC dependencies (`cert-manager`) into the `kcp-glbc` workspace.
 
 * Additionally, we would have deployed GLBC.
@@ -94,6 +101,7 @@ Now we will attempt to deploy the sample service. You can do this by running the
    ```bash
    ./samples/location-api/sample.sh
    ```
+
 After the sample service has been deployed, we are presented with the following output of what was done, and some useful commands:
 
 ```bash
@@ -101,15 +109,15 @@ before running this script, ensure that you have set the flag --advanced-schedul
 Press enter to continue
 Current workspace is "root:kuadrant" (type "root:universal").
 creating locations for sync targets in root:kuadrant workspace
-location.scheduling.kcp.dev/kcp-location-1 created
-location.scheduling.kcp.dev/kcp-location-2 created
+location.scheduling.kcp.io/kcp-location-1 created
+location.scheduling.kcp.io/kcp-location-2 created
 creating placement in home workspace
 Current workspace is "root:users:zu:yc:kcp-admin".
 creating apibindings in home workspace
-apibinding.apis.kcp.dev/kubernetes created
-apibinding.apis.kcp.dev/glbc created
-placement.scheduling.kcp.dev/placement-1 created
-placement.scheduling.kcp.dev "default" deleted
+apibinding.apis.kcp.io/kubernetes created
+apibinding.apis.kcp.io/glbc created
+placement.scheduling.kcp.io/placement-1 created
+placement.scheduling.kcp.io "default" deleted
 deploying workload resources in home workspace
 service/echo created
 deployment.apps/echo created
@@ -125,7 +133,6 @@ ingress.networking.k8s.io/echo created
 Press enter to trigger migration from kcp-cluster-1 to kcp-cluster-2
 ```
 
-
 The sample script will remain paused until we press the enter key to migrate the workload from one cluster to the other. However, we will not perform this action just yet.
 
 <br>
@@ -133,22 +140,26 @@ The sample script will remain paused until we press the enter key to migrate the
 ### Verify sample service deployment
 
 1. In a new terminal, verify that the ingress was created after deploying the sample service:
+
    ```bash
    export KUBECONFIG=.kcp/admin.kubeconfig                                         
    ./bin/kubectl-kcp workspace use '~'
    kubectl get ingress
    ```
+
    ```bash
    NAME       AGE
    echo       81s
    ```
 
 1. Verify that the DNS record was created:
+
    ```bash
    export KUBECONFIG=.kcp/admin.kubeconfig                                         
    ./bin/kubectl-kcp workspace use '~'
    kubectl get dnsrecords echo -o yaml
    ```
+
    We might not get an output just yet until the DNS record exists in `route53`. This may take several minutes.
 
 1. Alternatively, you can also view if the DNS record was created, by  in your AWS domain .
@@ -176,9 +187,10 @@ We will run the following commands in a new tab:
    ./bin/kubectl-kcp workspace use '~'
    kubectl get ns default -o yaml
    ```
-As we can see, there is a label named something like: `*state.workload.kcp.dev/5MivhNIs7DjM7dK95I2K7TpWe7aUGMU4WHqjWn: Sync*`:
 
-GLBC is telling `kcp` where to sync all of the work resources in the namespace. Meaning, since the `state` label in the namespace is set to `5MivhNIs7DjM7dK95I2K7TpWe7aUGMU4WHqjWn` (kcp-cluster-1) , the `state` label in the ingress will also have `5MivhNIs7DjM7dK95I2K7TpWe7aUGMU4WHqjWn` (kcp-cluster-1) set to it. 
+As we can see, there is a label named something like: `*state.workload.kcp.io/5MivhNIs7DjM7dK95I2K7TpWe7aUGMU4WHqjWn: Sync*`:
+
+GLBC is telling `kcp` where to sync all of the work resources in the namespace. Meaning, since the `state` label in the namespace is set to `5MivhNIs7DjM7dK95I2K7TpWe7aUGMU4WHqjWn` (kcp-cluster-1) , the `state` label in the ingress will also have `5MivhNIs7DjM7dK95I2K7TpWe7aUGMU4WHqjWn` (kcp-cluster-1) set to it.
 
 <br>
 
@@ -196,7 +208,6 @@ As we can see in the first annotation, the load balancer for `kcp-cluster-1` wil
 
    ![Screenshot from 2022-09-09 19-11-06](https://user-images.githubusercontent.com/73656840/189416748-fb94527e-509c-44c0-b680-300691721acb.png)
 
-
 Alternatively, we can also run the following command in another tab to start watching the DNS record in real-time:
 
    ```bash
@@ -204,7 +215,7 @@ Alternatively, we can also run the following command in another tab to start wat
    ./bin/kubectl-kcp workspace use '~'
    watch -n1 'kubectl get dnsrecords echo -o yaml | yq eval ".spec" -'
    ```
-   
+
 <br>
 
 #### Curl the running domain
@@ -227,22 +238,19 @@ This means that kcp-cluster-1 is up and running correctly.
 
 As we continue with the following steps, we will want to be observing the tab where we are watching our domain. This way, we will notice that during the workload migration, there is no interruptions and no downtime.
 
-To proceed with the workload migration, we will go to the tab where we deployed the sample service, and press the enter key to "trigger migration from `kcp-cluster-1` to `kcp-cluster-2`. This deletes `placement-1` and creates `placement-2` which points to `kcp-cluster-2`. This will also change the label in the "default" namespace mentioned before: `*state.internal.workload.kcp.dev/5MivhNIs7DjM7dK95I2K7TpWe7aUGMU4WHqjWn: Sync*` to the other cluster.
+To proceed with the workload migration, we will go to the tab where we deployed the sample service, and press the enter key to "trigger migration from `kcp-cluster-1` to `kcp-cluster-2`. This deletes `placement-1` and creates `placement-2` which points to `kcp-cluster-2`. This will also change the label in the "default" namespace mentioned before: `*state.internal.workload.kcp.io/5MivhNIs7DjM7dK95I2K7TpWe7aUGMU4WHqjWn: Sync*` to the other cluster.
 
    ![Screenshot from 2022-09-09 19-26-36](https://user-images.githubusercontent.com/73656840/189419200-17dd3086-82f1-4bf7-ae95-70bc4f3e8b87.png)
-
 
 In the tab where we are watching the ingress, we can observe that the label in the ingress has changed from `kcp-cluster-1` to `kcp-cluster-2`. KCP has propagated that label down from the namespace to everything in it. Everything in the namespace gets the same label. Because of that label, `kcp` is syncing it to `kcp-cluster-2`.
 
    ![Screenshot from 2022-09-09 19-22-43](https://user-images.githubusercontent.com/73656840/189418521-66a70b94-4f7e-47de-bbd0-1987d0a2dcce.png)
 
+Moreover, in the annotations we also have a status there for `kcp-cluster-2` and it has an IP address in it meaning that it has indeed synced to `kcp-cluster-2`. We will also find another annotation named "*deletion.internal.workload.kcp.io/kcp-cluster-1*", which is code coming from the GLBC which is saying "Don't remove this work from `kcp-cluster-1` until the DNS has propagated."
 
-Moreover, in the annotations we also have a status there for `kcp-cluster-2` and it has an IP address in it meaning that it has indeed synced to `kcp-cluster-2`. We will also find another annotation named "*deletion.internal.workload.kcp.dev/kcp-cluster-1*", which is code coming from the GLBC which is saying "Don't remove this work from `kcp-cluster-1` until the DNS has propagated."
-
-For that reason we can also observe another annotation named "*finalizers.workload.kcp.dev/kcp-cluster-1: kuadrant.dev/glbc-migration*" which remains there because GLBC is saying to `kcp` "Don't get rid of this yet, as we're waiting for it to come up to another cluster before you remove it from `kcp-cluster-1`. After it has completely migrated and sufficient time has been allowed for DNS propagation, the finalizer for `kcp-cluster-1` will no longer be there and the workload will be deleted from `kcp-cluster-1`. Account for the DNS propagation time of the TTL (usually 60 seconds) * 2.
+For that reason we can also observe another annotation named "*finalizers.workload.kcp.io/kcp-cluster-1: kuadrant.dev/glbc-migration*" which remains there because GLBC is saying to `kcp` "Don't get rid of this yet, as we're waiting for it to come up to another cluster before you remove it from `kcp-cluster-1`. After it has completely migrated and sufficient time has been allowed for DNS propagation, the finalizer for `kcp-cluster-1` will no longer be there and the workload will be deleted from `kcp-cluster-1`. Account for the DNS propagation time of the TTL (usually 60 seconds) * 2.
 
    ![Screenshot from 2022-09-09 19-25-07](https://user-images.githubusercontent.com/73656840/189418887-2efd4977-17dc-4d1e-b888-ca32b58d862a.png)
-
 
 We will notice that in the tab where we are curling the domain, we will always be getting a response back because the graceful migration is active. Meaning, even after the workload has been migrated, and the DNS record is updated, we will keep receiving a response without any interruption even after `kcp-cluster-1` has been deleted. This can be observed in our curl:
 
@@ -283,5 +291,5 @@ kcp-cluster-1     kcp-cluster-1     True    ["deployments.apps","ingresses.netwo
 kcp-cluster-crc   kcp-cluster-crc   True    ["deployments.apps","ingresses.networking.k8s.io","secrets","services"]
 ```
 
-You must have crc installed(https://crc.dev/crc/), and have your openshift pull secret(https://cloud.redhat.com/openshift/create/local) stored locally in `~/pull-secret`. 
+You must have crc installed(<https://crc.dev/crc/>), and have your openshift pull secret(<https://cloud.redhat.com/openshift/create/local>) stored locally in `~/pull-secret`.
 Please check the script comments for any version requirements.

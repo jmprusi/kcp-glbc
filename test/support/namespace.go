@@ -15,7 +15,7 @@ limitations under the License.
 package support
 
 import (
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +39,7 @@ func createTestNamespace(t Test, options ...Option) *corev1.Namespace {
 		t.Expect(option.applyTo(namespace)).To(gomega.Succeed())
 	}
 
-	namespace, err := t.Client().Core().Cluster(logicalcluster.From(namespace)).CoreV1().Namespaces().Create(t.Ctx(), namespace, metav1.CreateOptions{})
+	namespace, err := t.Client().Core().Cluster(logicalcluster.From(namespace).Path()).CoreV1().Namespaces().Create(t.Ctx(), namespace, metav1.CreateOptions{})
 	t.Expect(err).NotTo(gomega.HaveOccurred())
 
 	return namespace
@@ -47,7 +47,7 @@ func createTestNamespace(t Test, options ...Option) *corev1.Namespace {
 
 func deleteTestNamespace(t Test, namespace *corev1.Namespace) {
 	propagationPolicy := metav1.DeletePropagationBackground
-	err := t.Client().Core().Cluster(logicalcluster.From(namespace)).CoreV1().Namespaces().Delete(t.Ctx(), namespace.Name, metav1.DeleteOptions{
+	err := t.Client().Core().Cluster(logicalcluster.From(namespace).Path()).CoreV1().Namespaces().Delete(t.Ctx(), namespace.Name, metav1.DeleteOptions{
 		PropagationPolicy: &propagationPolicy,
 	})
 	t.Expect(err).NotTo(gomega.HaveOccurred())

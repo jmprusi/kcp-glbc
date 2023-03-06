@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/apis/kuadrant/v1"
 	"github.com/kuadrant/kcp-glbc/pkg/dns"
@@ -40,7 +40,7 @@ func GetDNSRecord(t Test, namespace *corev1.Namespace, name string) *kuadrantv1.
 
 func DNSRecord(t Test, namespace *corev1.Namespace, name string) func(g gomega.Gomega) *kuadrantv1.DNSRecord {
 	return func(g gomega.Gomega) *kuadrantv1.DNSRecord {
-		dnsRecord, err := t.Client().Kuadrant().Cluster(logicalcluster.From(namespace)).KuadrantV1().DNSRecords(namespace.Name).Get(t.Ctx(), name, metav1.GetOptions{})
+		dnsRecord, err := t.Client().Kuadrant().Cluster(logicalcluster.From(namespace).Path()).KuadrantV1().DNSRecords(namespace.Name).Get(t.Ctx(), name, metav1.GetOptions{})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return dnsRecord
 	}
@@ -53,7 +53,7 @@ func GetDNSRecords(t Test, namespace *corev1.Namespace, labelSelector string) []
 
 func DNSRecords(t Test, namespace *corev1.Namespace, labelSelector string) func(g gomega.Gomega) []kuadrantv1.DNSRecord {
 	return func(g gomega.Gomega) []kuadrantv1.DNSRecord {
-		dnsRecords, err := t.Client().Kuadrant().Cluster(logicalcluster.From(namespace)).KuadrantV1().DNSRecords(namespace.Name).List(t.Ctx(), metav1.ListOptions{LabelSelector: labelSelector})
+		dnsRecords, err := t.Client().Kuadrant().Cluster(logicalcluster.From(namespace).Path()).KuadrantV1().DNSRecords(namespace.Name).List(t.Ctx(), metav1.ListOptions{LabelSelector: labelSelector})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return dnsRecords.Items
 	}
@@ -113,7 +113,7 @@ func SetARecord(t Test, host, value string) error {
 }
 
 func GetZone(t Test, host string) (Zone, error) {
-	cfg, err := t.Client().Core().Cluster(GLBCWorkspace).CoreV1().ConfigMaps(ConfigmapNamespace).Get(t.Ctx(), ConfigmapName, metav1.GetOptions{})
+	cfg, err := t.Client().Core().Cluster(GLBCWorkspace.Path()).CoreV1().ConfigMaps(ConfigmapNamespace).Get(t.Ctx(), ConfigmapName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func GetZone(t Test, host string) (Zone, error) {
 
 // setDNSRecord - do not call this directly - use SetTXTRecord or SetARecord
 func setDNSRecord(t Test, key, value string) error {
-	cfg, err := t.Client().Core().Cluster(GLBCWorkspace).CoreV1().ConfigMaps(ConfigmapNamespace).Get(t.Ctx(), ConfigmapName, metav1.GetOptions{})
+	cfg, err := t.Client().Core().Cluster(GLBCWorkspace.Path()).CoreV1().ConfigMaps(ConfigmapNamespace).Get(t.Ctx(), ConfigmapName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func setDNSRecord(t Test, key, value string) error {
 
 // setDNSRecords - do not call this directly - use SetTXTRecord or SetARecord
 func setDNSRecords(t Test, values map[string]string) error {
-	_, err := t.Client().Core().Cluster(GLBCWorkspace).CoreV1().ConfigMaps(ConfigmapNamespace).Apply(
+	_, err := t.Client().Core().Cluster(GLBCWorkspace.Path()).CoreV1().ConfigMaps(ConfigmapNamespace).Apply(
 		t.Ctx(),
 		corev1apply.ConfigMap(ConfigmapName, ConfigmapNamespace).WithData(values),
 		ApplyOptions,

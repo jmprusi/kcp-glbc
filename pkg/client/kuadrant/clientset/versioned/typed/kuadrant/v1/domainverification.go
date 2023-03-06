@@ -6,7 +6,6 @@ import (
 	"context"
 	"time"
 
-	v2 "github.com/kcp-dev/logicalcluster/v2"
 	v1 "github.com/kuadrant/kcp-glbc/pkg/apis/kuadrant/v1"
 	scheme "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,15 +36,13 @@ type DomainVerificationInterface interface {
 
 // domainVerifications implements DomainVerificationInterface
 type domainVerifications struct {
-	client  rest.Interface
-	cluster v2.Name
+	client rest.Interface
 }
 
 // newDomainVerifications returns a DomainVerifications
 func newDomainVerifications(c *KuadrantV1Client) *domainVerifications {
 	return &domainVerifications{
-		client:  c.RESTClient(),
-		cluster: c.cluster,
+		client: c.RESTClient(),
 	}
 }
 
@@ -53,7 +50,6 @@ func newDomainVerifications(c *KuadrantV1Client) *domainVerifications {
 func (c *domainVerifications) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.DomainVerification, err error) {
 	result = &v1.DomainVerification{}
 	err = c.client.Get().
-		Cluster(c.cluster).
 		Resource("domainverifications").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -70,7 +66,6 @@ func (c *domainVerifications) List(ctx context.Context, opts metav1.ListOptions)
 	}
 	result = &v1.DomainVerificationList{}
 	err = c.client.Get().
-		Cluster(c.cluster).
 		Resource("domainverifications").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -87,7 +82,6 @@ func (c *domainVerifications) Watch(ctx context.Context, opts metav1.ListOptions
 	}
 	opts.Watch = true
 	return c.client.Get().
-		Cluster(c.cluster).
 		Resource("domainverifications").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -98,7 +92,6 @@ func (c *domainVerifications) Watch(ctx context.Context, opts metav1.ListOptions
 func (c *domainVerifications) Create(ctx context.Context, domainVerification *v1.DomainVerification, opts metav1.CreateOptions) (result *v1.DomainVerification, err error) {
 	result = &v1.DomainVerification{}
 	err = c.client.Post().
-		Cluster(c.cluster).
 		Resource("domainverifications").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(domainVerification).
@@ -111,7 +104,6 @@ func (c *domainVerifications) Create(ctx context.Context, domainVerification *v1
 func (c *domainVerifications) Update(ctx context.Context, domainVerification *v1.DomainVerification, opts metav1.UpdateOptions) (result *v1.DomainVerification, err error) {
 	result = &v1.DomainVerification{}
 	err = c.client.Put().
-		Cluster(c.cluster).
 		Resource("domainverifications").
 		Name(domainVerification.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -126,7 +118,6 @@ func (c *domainVerifications) Update(ctx context.Context, domainVerification *v1
 func (c *domainVerifications) UpdateStatus(ctx context.Context, domainVerification *v1.DomainVerification, opts metav1.UpdateOptions) (result *v1.DomainVerification, err error) {
 	result = &v1.DomainVerification{}
 	err = c.client.Put().
-		Cluster(c.cluster).
 		Resource("domainverifications").
 		Name(domainVerification.Name).
 		SubResource("status").
@@ -140,7 +131,6 @@ func (c *domainVerifications) UpdateStatus(ctx context.Context, domainVerificati
 // Delete takes name of the domainVerification and deletes it. Returns an error if one occurs.
 func (c *domainVerifications) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
-		Cluster(c.cluster).
 		Resource("domainverifications").
 		Name(name).
 		Body(&opts).
@@ -155,7 +145,6 @@ func (c *domainVerifications) DeleteCollection(ctx context.Context, opts metav1.
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
-		Cluster(c.cluster).
 		Resource("domainverifications").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -168,7 +157,6 @@ func (c *domainVerifications) DeleteCollection(ctx context.Context, opts metav1.
 func (c *domainVerifications) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.DomainVerification, err error) {
 	result = &v1.DomainVerification{}
 	err = c.client.Patch(pt).
-		Cluster(c.cluster).
 		Resource("domainverifications").
 		Name(name).
 		SubResource(subresources...).

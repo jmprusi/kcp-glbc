@@ -19,7 +19,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kcp-dev/kcp/pkg/apis/scheduling/v1alpha1"
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -28,10 +27,11 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
+	corev1alpha1 "github.com/kcp-dev/kcp/pkg/apis/core/v1alpha1"
+	schedulingv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/scheduling/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
-	tenancyv1beta1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1beta1"
 	workloadv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/apis/kuadrant/v1"
 )
@@ -43,12 +43,12 @@ type Test interface {
 
 	gomega.Gomega
 
-	CreateGLBCAPIBindings(*tenancyv1beta1.Workspace, logicalcluster.Name, string)
-	CreatePlacements(workspace *tenancyv1beta1.Workspace)
+	CreateGLBCAPIBindings(*tenancyv1alpha1.Workspace, logicalcluster.Name, string)
+	CreatePlacements(workspace *tenancyv1alpha1.Workspace)
 	NewAPIBinding(name string, options ...Option) *apisv1alpha1.APIBinding
 	NewSyncTarget(name string, options ...Option) *workloadv1alpha1.SyncTarget
 	NewTestNamespace(...Option) *corev1.Namespace
-	NewTestWorkspace() *tenancyv1beta1.Workspace
+	NewTestWorkspace() *tenancyv1alpha1.Workspace
 }
 
 type Option interface {
@@ -105,12 +105,12 @@ func (t *T) Client() Client {
 	return t.client
 }
 
-func generatePlacement(name string, targetWorkspace *tenancyv1beta1.Workspace, locationSelectors, namespaceSelectors map[string]string) (*v1alpha1.Placement, error) {
-	placement := &v1alpha1.Placement{
+func generatePlacement(name string, targetWorkspace *tenancyv1alpha1.Workspace, locationSelectors, namespaceSelectors map[string]string) (*schedulingv1alpha1.Placement, error) {
+	placement := &schedulingv1alpha1.Placement{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: v1alpha1.PlacementSpec{
+		Spec: schedulingv1alpha1.PlacementSpec{
 			LocationSelectors: []metav1.LabelSelector{{MatchLabels: locationSelectors}},
-			LocationResource:  v1alpha1.GroupVersionResource{Group: "workload.kcp.dev", Resource: "synctargets", Version: "v1alpha1"},
+			LocationResource:  schedulingv1alpha1.GroupVersionResource{Group: "workload.kcp.io", Resource: "synctargets", Version: "v1alpha1"},
 			NamespaceSelector: &metav1.LabelSelector{MatchLabels: namespaceSelectors},
 			LocationWorkspace: TestOrganization.String(),
 		},
@@ -121,7 +121,7 @@ func generatePlacement(name string, targetWorkspace *tenancyv1beta1.Workspace, l
 	return placement, err
 }
 
-func (t *T) CreatePlacements(targetWorkspace *tenancyv1beta1.Workspace) {
+func (t *T) CreatePlacements(targetWorkspace *tenancyv1alpha1.Workspace) {
 	placement, err := generatePlacement(
 		"glbc-ingresses",
 		targetWorkspace,
@@ -132,7 +132,7 @@ func (t *T) CreatePlacements(targetWorkspace *tenancyv1beta1.Workspace) {
 		t.Expect(err).NotTo(gomega.HaveOccurred())
 	}
 
-	_, err = t.Client().Kcp().Cluster(logicalcluster.From(placement)).SchedulingV1alpha1().Placements().Create(t.Ctx(), placement, metav1.CreateOptions{})
+	_, err = t.Client().Kcp().Cluster(logicalcluster.From(placement).Path()).SchedulingV1alpha1().Placements().Create(t.Ctx(), placement, metav1.CreateOptions{})
 	if err != nil {
 		t.Expect(err).NotTo(gomega.HaveOccurred())
 	}
@@ -146,12 +146,12 @@ func (t *T) CreatePlacements(targetWorkspace *tenancyv1beta1.Workspace) {
 		t.Expect(err).NotTo(gomega.HaveOccurred())
 	}
 
-	_, err = t.Client().Kcp().Cluster(logicalcluster.From(placement)).SchedulingV1alpha1().Placements().Create(t.Ctx(), placement, metav1.CreateOptions{})
+	_, err = t.Client().Kcp().Cluster(logicalcluster.From(placement).Path()).SchedulingV1alpha1().Placements().Create(t.Ctx(), placement, metav1.CreateOptions{})
 	if err != nil {
 		t.Expect(err).NotTo(gomega.HaveOccurred())
 	}
 }
-func (t *T) CreateGLBCAPIBindings(targetWorkspace *tenancyv1beta1.Workspace, glbcWorkspace logicalcluster.Name, glbcExportName string) {
+func (t *T) CreateGLBCAPIBindings(targetWorkspace *tenancyv1alpha1.Workspace, glbcWorkspace logicalcluster.Name, glbcExportName string) {
 
 	t.T().Logf("Binding to kubernetes APIExport from %s to %s", glbcWorkspace.String(), targetWorkspace.Name)
 	// Bind compute workspace APIs
@@ -186,14 +186,14 @@ func (t *T) CreateGLBCAPIBindings(targetWorkspace *tenancyv1beta1.Workspace, glb
 		Should(gomega.BeTrue())
 }
 
-func (t *T) NewTestWorkspace() *tenancyv1beta1.Workspace {
+func (t *T) NewTestWorkspace() *tenancyv1alpha1.Workspace {
 	workspace := createTestWorkspace(t)
 	t.T().Cleanup(func() {
 		deleteTestWorkspace(t, workspace)
 	})
 	t.T().Logf("Creating workspace %v:%v", TestOrganization, workspace.Name)
 	t.Eventually(Workspace(t, workspace.Name)).
-		Should(gomega.WithTransform(WorkspacePhase, gomega.Equal(tenancyv1alpha1.ClusterWorkspacePhaseReady)))
+		Should(gomega.WithTransform(WorkspacePhase, gomega.Equal(corev1alpha1.LogicalClusterPhaseReady)))
 	return workspace
 }
 

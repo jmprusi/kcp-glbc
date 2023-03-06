@@ -15,7 +15,7 @@ limitations under the License.
 package support
 
 import (
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/onsi/gomega"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,9 +23,9 @@ import (
 	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/apis/kuadrant/v1"
 )
 
-func DomainVerification(t Test, clusterName logicalcluster.Name, name string) func(g gomega.Gomega) *kuadrantv1.DomainVerification {
+func DomainVerification(t Test, WorkspacePath logicalcluster.Path, name string) func(g gomega.Gomega) *kuadrantv1.DomainVerification {
 	return func(g gomega.Gomega) *kuadrantv1.DomainVerification {
-		domainVerification, err := t.Client().Kuadrant().Cluster(clusterName).KuadrantV1().DomainVerifications().Get(t.Ctx(), name, metav1.GetOptions{})
+		domainVerification, err := t.Client().Kuadrant().Cluster(WorkspacePath).KuadrantV1().DomainVerifications().Get(t.Ctx(), name, metav1.GetOptions{})
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 		return domainVerification
 	}

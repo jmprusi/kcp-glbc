@@ -3,18 +3,19 @@ package secret
 import (
 	"context"
 
+	kcpinformers "github.com/kcp-dev/client-go/informers"
+	"github.com/kcp-dev/client-go/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	corev1listers "k8s.io/client-go/listers/core/v1"
+
+	kcpcorev1listers "github.com/kcp-dev/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/go-logr/logr"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	"github.com/kuadrant/kcp-glbc/pkg/migration/workload"
 	"github.com/kuadrant/kcp-glbc/pkg/reconciler"
@@ -61,15 +62,15 @@ func NewController(config *ControllerConfig) (*Controller, error) {
 type ControllerConfig struct {
 	*reconciler.ControllerConfig
 	SecretsClient         kubernetes.ClusterInterface
-	SharedInformerFactory informers.SharedInformerFactory
+	SharedInformerFactory kcpinformers.SharedInformerFactory
 }
 
 type Controller struct {
 	*reconciler.Controller
-	sharedInformerFactory informers.SharedInformerFactory
+	sharedInformerFactory kcpinformers.SharedInformerFactory
 	coreClient            kubernetes.ClusterInterface
 	indexer               cache.Indexer
-	secretLister          corev1listers.SecretLister
+	secretLister          kcpcorev1listers.SecretClusterLister
 	migrationHandler      func(obj metav1.Object, queue workqueue.RateLimitingInterface, logger logr.Logger)
 }
 
@@ -92,7 +93,7 @@ func (c *Controller) process(ctx context.Context, key string) error {
 	}
 
 	if !equality.Semantic.DeepEqual(target, current) {
-		_, err := c.coreClient.Cluster(logicalcluster.From(target)).CoreV1().Secrets(target.Namespace).Update(ctx, target, metav1.UpdateOptions{})
+		_, err := c.coreClient.Cluster(logicalcluster.From(target).Path()).CoreV1().Secrets(target.Namespace).Update(ctx, target, metav1.UpdateOptions{})
 		return err
 	}
 

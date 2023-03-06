@@ -17,20 +17,19 @@ package support
 import (
 	"fmt"
 
+	corev1alpha1 "github.com/kcp-dev/kcp/pkg/apis/core/v1alpha1"
+	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
-	tenancyv1beta1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1beta1"
-	"github.com/kcp-dev/logicalcluster/v2"
 )
 
 func InWorkspace(workspace interface{}) Option {
 	switch w := workspace.(type) {
-	case *tenancyv1beta1.Workspace:
-		return &inWorkspace{logicalcluster.From(w).Join(w.Name)}
+	case *tenancyv1alpha1.Workspace:
+		return &inWorkspace{logicalcluster.Name(logicalcluster.From(w).Path().Join(w.Name).String())}
 	case logicalcluster.Name:
 		return &inWorkspace{w}
 	default:
@@ -62,10 +61,10 @@ func (o *inWorkspace) applyTo(to interface{}) error {
 	return nil
 }
 
-func HasImportedAPIs(t Test, workspace *tenancyv1beta1.Workspace, GVKs ...schema.GroupVersionKind) func(g gomega.Gomega) bool {
+func HasImportedAPIs(t Test, workspace *tenancyv1alpha1.Workspace, GVKs ...schema.GroupVersionKind) func(g gomega.Gomega) bool {
 	return func(g gomega.Gomega) bool {
 		// Get the logical cluster for the workspace
-		logicalCluster := logicalcluster.From(workspace).Join(workspace.Name)
+		logicalCluster := logicalcluster.From(workspace).Path().Join(workspace.Name)
 		discovery := t.Client().Core().Cluster(logicalCluster).Discovery()
 
 	GVKs:
@@ -89,31 +88,34 @@ func HasImportedAPIs(t Test, workspace *tenancyv1beta1.Workspace, GVKs ...schema
 	}
 }
 
-func Workspace(t Test, name string) func() *tenancyv1beta1.Workspace {
-	return func() *tenancyv1beta1.Workspace {
-		c, err := t.Client().Kcp().Cluster(TestOrganization).TenancyV1beta1().Workspaces().Get(t.Ctx(), name, metav1.GetOptions{})
+func Workspace(t Test, name string) func() *tenancyv1alpha1.Workspace {
+	return func() *tenancyv1alpha1.Workspace {
+		c, err := t.Client().Kcp().Cluster(TestOrganization.Path()).TenancyV1alpha1().Workspaces().Get(t.Ctx(), name, metav1.GetOptions{})
 		t.Expect(err).NotTo(gomega.HaveOccurred())
 		return c
 	}
 }
 
-func WorkspacePhase(workspace *tenancyv1beta1.Workspace) tenancyv1alpha1.ClusterWorkspacePhaseType {
+func WorkspacePhase(workspace *tenancyv1alpha1.Workspace) corev1alpha1.LogicalClusterPhaseType {
 	return workspace.Status.Phase
 }
 
-func createTestWorkspace(t Test) *tenancyv1beta1.Workspace {
+func createTestWorkspace(t Test) *tenancyv1alpha1.Workspace {
 	name := GenerateName("test-ws-")
 
-	workspace := &tenancyv1beta1.Workspace{
+	workspace := &tenancyv1alpha1.Workspace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: tenancyv1beta1.WorkspaceSpec{
-			Type: tenancyv1alpha1.ClusterWorkspaceTypeReference{},
+		Spec: tenancyv1alpha1.WorkspaceSpec{
+			Type: tenancyv1alpha1.WorkspaceTypeReference{
+				Name: tenancyv1alpha1.WorkspaceTypeName("universal"),
+				Path: "root",
+			},
 		},
 	}
 
-	workspace, err := t.Client().Kcp().Cluster(TestOrganization).TenancyV1beta1().Workspaces().Create(t.Ctx(), workspace, metav1.CreateOptions{})
+	workspace, err := t.Client().Kcp().Cluster(TestOrganization.Path()).TenancyV1alpha1().Workspaces().Create(t.Ctx(), workspace, metav1.CreateOptions{})
 	if err != nil {
 		t.Expect(err).NotTo(gomega.HaveOccurred())
 	}
@@ -121,9 +123,9 @@ func createTestWorkspace(t Test) *tenancyv1beta1.Workspace {
 	return workspace
 }
 
-func deleteTestWorkspace(t Test, workspace *tenancyv1beta1.Workspace) {
+func deleteTestWorkspace(t Test, workspace *tenancyv1alpha1.Workspace) {
 	propagationPolicy := metav1.DeletePropagationBackground
-	err := t.Client().Kcp().Cluster(logicalcluster.From(workspace)).TenancyV1beta1().Workspaces().Delete(t.Ctx(), workspace.Name, metav1.DeleteOptions{
+	err := t.Client().Kcp().Cluster(logicalcluster.From(workspace).Path()).TenancyV1alpha1().Workspaces().Delete(t.Ctx(), workspace.Name, metav1.DeleteOptions{
 		PropagationPolicy: &propagationPolicy,
 	})
 	t.Expect(err).NotTo(gomega.HaveOccurred())

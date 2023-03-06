@@ -26,7 +26,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/apis/kuadrant/v1"
 	"github.com/kuadrant/kcp-glbc/pkg/traffic"
@@ -37,7 +37,7 @@ import (
 func createTestIngress(t Test, namespace *corev1.Namespace, serviceName string) *networkingv1.Ingress {
 	name := GenerateName("test-ing-")
 
-	ingress, err := t.Client().Core().Cluster(logicalcluster.From(namespace)).NetworkingV1().Ingresses(namespace.Name).
+	ingress, err := t.Client().Core().Cluster(logicalcluster.From(namespace).Path()).NetworkingV1().Ingresses(namespace.Name).
 		Apply(t.Ctx(), IngressConfiguration(namespace.Name, name, serviceName, "test.glbc.com"), ApplyOptions)
 	t.Expect(err).NotTo(HaveOccurred())
 
@@ -49,7 +49,7 @@ func createTestIngress(t Test, namespace *corev1.Namespace, serviceName string) 
 }
 
 func deleteTestIngress(t Test, namespace *corev1.Namespace, ingress *networkingv1.Ingress) {
-	err := t.Client().Core().Cluster(logicalcluster.From(namespace)).NetworkingV1().Ingresses(namespace.Name).
+	err := t.Client().Core().Cluster(logicalcluster.From(namespace).Path()).NetworkingV1().Ingresses(namespace.Name).
 		Delete(t.Ctx(), ingress.Name, metav1.DeleteOptions{})
 	t.Expect(err).NotTo(HaveOccurred())
 }
@@ -76,12 +76,12 @@ func TestIngressBasic(t Test, ingressCount int, zoneID, glbcDomain string) {
 
 	name := "test-echo"
 	// Create test Deployment
-	_, err := t.Client().Core().Cluster(logicalcluster.From(namespace)).AppsV1().Deployments(namespace.Name).
+	_, err := t.Client().Core().Cluster(logicalcluster.From(namespace).Path()).AppsV1().Deployments(namespace.Name).
 		Apply(t.Ctx(), DeploymentConfiguration(namespace.Name, name), ApplyOptions)
 	t.Expect(err).NotTo(HaveOccurred())
 
 	// Create test Service
-	_, err = t.Client().Core().Cluster(logicalcluster.From(namespace)).CoreV1().Services(namespace.Name).
+	_, err = t.Client().Core().Cluster(logicalcluster.From(namespace).Path()).CoreV1().Services(namespace.Name).
 		Apply(t.Ctx(), ServiceConfiguration(namespace.Name, name, map[string]string{}), ApplyOptions)
 	t.Expect(err).NotTo(HaveOccurred())
 

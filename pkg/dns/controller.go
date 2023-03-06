@@ -9,11 +9,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	v1 "github.com/kuadrant/kcp-glbc/pkg/apis/kuadrant/v1"
-	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned"
-	"github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/informers/externalversions"
+	kuadrantv1 "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/clientset/versioned/cluster"
+	kuadrantinformer "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/informers/externalversions"
 	kuadrantv1lister "github.com/kuadrant/kcp-glbc/pkg/client/kuadrant/listers/kuadrant/v1"
 	"github.com/kuadrant/kcp-glbc/pkg/reconciler"
 )
@@ -76,7 +76,7 @@ func NewController(config *ControllerConfig) (*Controller, error) {
 	})
 
 	c.indexer = c.sharedInformerFactory.Kuadrant().V1().DNSRecords().Informer().GetIndexer()
-	c.lister = c.sharedInformerFactory.Kuadrant().V1().DNSRecords().Lister()
+	c.lister = c.sharedInformerFactory.Kuadrant().V1().DNSRecords().Lister().Cluster(logicalcluster.Name(logicalcluster.Wildcard.String()))
 
 	return c, nil
 }
@@ -84,13 +84,13 @@ func NewController(config *ControllerConfig) (*Controller, error) {
 type ControllerConfig struct {
 	*reconciler.ControllerConfig
 	DnsRecordClient       kuadrantv1.ClusterInterface
-	SharedInformerFactory externalversions.SharedInformerFactory
+	SharedInformerFactory kuadrantinformer.SharedInformerFactory
 	DNSProvider           string
 }
 
 type Controller struct {
 	*reconciler.Controller
-	sharedInformerFactory externalversions.SharedInformerFactory
+	sharedInformerFactory kuadrantinformer.SharedInformerFactory
 	dnsRecordClient       kuadrantv1.ClusterInterface
 	indexer               cache.Indexer
 	lister                kuadrantv1lister.DNSRecordLister
@@ -116,7 +116,7 @@ func (c *Controller) process(ctx context.Context, key string) error {
 	}
 
 	if !equality.Semantic.DeepEqual(previous.Status, current.Status) {
-		refresh, err := c.dnsRecordClient.Cluster(logicalcluster.From(current)).KuadrantV1().DNSRecords(current.Namespace).UpdateStatus(ctx, current, metav1.UpdateOptions{})
+		refresh, err := c.dnsRecordClient.Cluster(logicalcluster.From(current).Path()).KuadrantV1().DNSRecords(current.Namespace).UpdateStatus(ctx, current, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -124,7 +124,7 @@ func (c *Controller) process(ctx context.Context, key string) error {
 	}
 
 	if !equality.Semantic.DeepEqual(previous, current) {
-		_, err := c.dnsRecordClient.Cluster(logicalcluster.From(current)).KuadrantV1().DNSRecords(current.Namespace).Update(ctx, current, metav1.UpdateOptions{})
+		_, err := c.dnsRecordClient.Cluster(logicalcluster.From(current).Path()).KuadrantV1().DNSRecords(current.Namespace).Update(ctx, current, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
